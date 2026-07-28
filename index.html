@@ -86,6 +86,11 @@
   /* On-list tiles */
   .list .tile{border-color:var(--green-soft)}
   .list .tile .nm{color:var(--green-dark)}
+  /* 1. Druck: ausgegraut + Häkchen-Hinweis (2. Druck entfernt) */
+  .tile.armed{opacity:.45;filter:grayscale(.7)}
+  .tile.armed .emo{filter:grayscale(1)}
+  .armed-check{position:absolute;inset:0;display:grid;place-items:center;
+    font-size:30px;color:var(--green);font-weight:900;pointer-events:none}
 
   .empty{color:var(--muted);font-size:14px;text-align:center;padding:22px 10px;
     background:var(--card);border-radius:18px;box-shadow:var(--shadow)}
@@ -367,8 +372,10 @@ function fitAll(){ document.querySelectorAll(".nm").forEach(fitText); }
 
 function tileHTML(it){
   const q = qtyLabel(it);
-  return `<div class="tile" data-id="${it.id}">
+  const armed = it.id===armedId;
+  return `<div class="tile${armed?' armed':''}" data-id="${it.id}">
     ${q? `<span class="qty">${q}</span>`:""}
+    ${armed? `<span class="armed-check">✓</span>`:""}
     <span class="emo">${it.emo}</span><span class="nm">${it.name}</span></div>`;
 }
 
@@ -386,26 +393,25 @@ function addItem(name, emo, qty=null, unit=null){
 function buyItem(id){ const it=byId(id); if(!it) return; logHist(it,"buy"); removeItem(id); }  // abhaken = gekauft
 function removeItem(id){ state.items = state.items.filter(i=>i.id!==id); render(); }
 
-/* Tap handling – Katalog: Menü zum Draufsetzen. Liste: Doppel-Tipp = abhaken (Schutz gegen Versehen) */
-let lastTap = { id:null, t:0 };
+/* Tap handling – Katalog: Menü zum Draufsetzen.
+   Liste: 1. Druck graut den Artikel aus, 2. Druck (auf denselben) hakt ihn ab – kein Zeitdruck. */
+let armedId = null;
 document.addEventListener("click", e=>{
   const catTile = e.target.closest("[data-cat]");
   const itemTile = e.target.closest("[data-id]");
   if(catTile){
+    armedId=null;
     openAdd(catTile.getAttribute("data-cat"));    // Menü öffnen -> mit oder ohne Menge übernehmen
     return;
   }
   if(itemTile){
     const id = +itemTile.getAttribute("data-id");
     if(!byId(id)) return;
-    const now = Date.now();
-    if(lastTap.id===id && now-lastTap.t < 350){    // Doppel-Tipp -> abhaken (gekauft)
-      lastTap = { id:null, t:0 };
-      buyItem(id);
-    } else {
-      lastTap = { id, t:now };                     // Einzel-Tipp -> nichts (Schutz gegen Versehen)
-    }
+    if(armedId===id){ armedId=null; buyItem(id); } // 2. Druck -> gekauft (weg)
+    else { armedId=id; render(); }                 // 1. Druck -> ausgegraut
+    return;
   }
+  if(armedId!=null){ armedId=null; render(); }     // woanders getippt -> Auswahl wieder aufheben
 });
 
 /* ---------- Mengen-Menü (nur beim Draufsetzen) ---------- */

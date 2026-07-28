@@ -54,8 +54,8 @@ Zentrale Konstanten:
 - Dort Menge/Einheit wählen ODER direkt „Übernehmen" (= ohne Menge, nur der Name).
 - Menü startet auf „ohne". `+` macht 1, 2, …; `−` unter 1 = wieder „ohne".
 
-**Abhaken (Artikel schon auf der Liste)**
-- **Doppel-Tipp** → **abhaken** (Schutz gegen versehentliches Wegtippen). Einzel-Tipp macht nichts.
+**Abhaken (Artikel schon auf der Liste)** – Zwei-Druck-Prinzip, kein Zeitdruck:
+- **1. Druck** → Artikel wird **ausgegraut** + Häkchen (= „sicher?"). **2. Druck** auf denselben → **weg**. Woanders tippen hebt die Auswahl wieder auf. (Schutz gegen Versehen; State: `armedId`.)
 - **Kein Menü** beim Abhaken – Menge gibt es nur beim *Draufsetzen*. Grund: Bastian kauft einen Artikel ganz oder gar nicht (keine Teilmengen über mehrere Läden).
 - **Abhaken = gekauft**: Artikel verschwindet aus der Liste und landet im **Verlauf** (dort mit 1 Tipp zurückholbar = Undo).
 
