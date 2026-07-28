@@ -43,9 +43,11 @@
   .chev{opacity:.7;font-size:15px}
   .avatars{display:flex}
   .av{width:34px;height:34px;border-radius:50%;border:2px solid #0a0d0a;
-      display:grid;place-items:center;font-weight:700;font-size:13px;color:#fff;margin-left:-8px}
+      display:grid;place-items:center;font-weight:700;font-size:13px;color:#fff;margin-left:-8px;
+      cursor:pointer;opacity:.5;transition:opacity .15s,box-shadow .15s}
   .av.b{background:#d98736}
   .av.s{background:#c65f7e}
+  .av.me{opacity:1;box-shadow:0 0 0 2px var(--green)}   /* das bin ich auf diesem Gerät */
   .subtle{color:var(--muted);font-size:13px;margin-top:2px}
 
   /* Search / add bar */
@@ -111,6 +113,10 @@
   .hist-meta{font-size:12px;color:var(--muted);margin-top:1px}
   .hist-readd{font-size:12px;color:var(--green);flex:0 0 auto;font-weight:800}
   .hist-empty{color:var(--muted);text-align:center;padding:26px 10px}
+  .who-badge{display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;
+    font-size:10px;font-weight:800;color:#fff;vertical-align:middle}
+  .who-badge.b{background:#d98736}
+  .who-badge.s{background:#c65f7e}
 
   /* Bottom sheet */
   .sheet-bg{position:fixed;inset:0;background:rgba(15,25,20,.45);z-index:40;
@@ -164,8 +170,8 @@
         <button class="hist-btn" id="scanBtn" aria-label="Rezept scannen">📷</button>
         <button class="hist-btn" id="histBtn" aria-label="Verlauf">🕘</button>
         <div class="avatars">
-          <div class="av b">B</div>
-          <div class="av s">S</div>
+          <div class="av b" data-me="B" title="Das bin ich">B</div>
+          <div class="av s" data-me="S" title="Das bin ich">S</div>
         </div>
       </div>
     </div>
@@ -245,7 +251,7 @@
 <div class="sheet" id="histSheet">
   <div class="grab"></div>
   <h3>🕘 Verlauf</h3>
-  <p class="sub">Was draufgesetzt & gekauft wurde – tippen, um es wieder draufzusetzen</p>
+  <p class="sub">Wer was draufgesetzt & gekauft hat – tippen, um es wieder draufzusetzen</p>
   <div id="histList" class="hist-list"></div>
   <div class="sheet-actions">
     <button class="btn btn-ghost" id="histClear">Verlauf leeren</button>
@@ -288,8 +294,9 @@ const SECTIONS = ["Vorrat","Sonstiges","Event"];    // eigene Bereiche, Menge au
 const KEY = "einkauf_prototyp_v2";
 let state = JSON.parse(localStorage.getItem(KEY) || "null") || { items: [], history: [] };
 state.history = state.history || [];
+state.me = state.me || "B";     // wer bin ich auf DIESEM Gerät ("B" oder "S")
 // items: [ {id, name, emo, qty, unit} ]  – gleiches Produkt darf mehrfach vorkommen
-// history: [ {name, emo, action:'add'|'buy', t} ] – neuester zuerst
+// history: [ {name, emo, action:'add'|'buy', who, t} ] – neuester zuerst
 let seq = state.items.reduce((m,i)=>Math.max(m, i.id||0), 0);
 function newId(){ return ++seq; }
 function byId(id){ return state.items.find(i=>i.id===id); }
@@ -381,7 +388,7 @@ function tileHTML(it){
 
 /* ---------- Actions ---------- */
 function logHist(it, action){
-  state.history.unshift({ name:it.name, emo:it.emo, action, t:Date.now() });
+  state.history.unshift({ name:it.name, emo:it.emo, action, who:state.me, t:Date.now() });
   if(state.history.length>200) state.history.length=200;
 }
 function addItem(name, emo, qty=null, unit=null){
@@ -502,15 +509,18 @@ function relTime(t){
 }
 function renderHistory(){
   const h=state.history;
-  $("#histList").innerHTML = h.length ? h.map((e,i)=>`
+  $("#histList").innerHTML = h.length ? h.map((e,i)=>{
+    const who = e.who ? `<span class="who-badge ${e.who.toLowerCase()}">${e.who}</span> · ` : "";
+    return `
     <div class="hist-row" data-hist="${i}">
       <span class="hist-emo">${e.emo}</span>
       <div class="hist-main">
         <div class="hist-name">${e.name}</div>
-        <div class="hist-meta">${e.action==="buy"?"🛒 gekauft":"➕ draufgesetzt"} · ${relTime(e.t)}</div>
+        <div class="hist-meta">${e.action==="buy"?"🛒 gekauft":"➕ draufgesetzt"} · ${who}${relTime(e.t)}</div>
       </div>
       <span class="hist-readd">+ dazu</span>
-    </div>`).join("") : `<div class="hist-empty">Noch nichts passiert.</div>`;
+    </div>`;
+  }).join("") : `<div class="hist-empty">Noch nichts passiert.</div>`;
 }
 $("#histBtn").onclick=()=>{ renderHistory(); openSheet("#histSheet"); };
 $("#histClose").onclick=closeSheet;
@@ -520,6 +530,11 @@ $("#histList").onclick=e=>{
   const ev=state.history[+row.getAttribute("data-hist")];
   if(ev){ addItem(ev.name, ev.emo); closeSheet(); }   // wieder draufsetzen
 };
+
+/* ---------- Wer bin ich (pro Gerät) ---------- */
+function refreshMe(){ document.querySelectorAll(".av").forEach(a=>a.classList.toggle("me", a.getAttribute("data-me")===state.me)); }
+document.querySelectorAll(".av").forEach(a=>a.onclick=()=>{ state.me=a.getAttribute("data-me"); save(); refreshMe(); });
+refreshMe();
 
 render();
 </script>

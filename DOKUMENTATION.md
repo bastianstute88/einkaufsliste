@@ -66,9 +66,14 @@ Zentrale Konstanten:
 4. **📦 Vorrat – kann, muss nicht** – optisch abgesetzt (gestrichelt). „Mitnehmen, wenn im Angebot." **Zählt NICHT** im „Auf der Liste"-Zähler.
 
 **Verlauf (🕘 oben rechts)**
-- Zeigt, was **draufgesetzt** (➕) und was **gekauft** (🛒) wurde, mit Zeit (heute/gestern/Datum).
+- Zeigt, **wer** was **draufgesetzt** (➕) und **gekauft** (🛒) hat, mit Personen-Kürzel (B/S) und Zeit (heute/gestern/Datum).
 - Eintrag antippen → Produkt **wieder draufsetzen** (praktisch für oft Gekauftes).
 - „Verlauf leeren" möglich.
+
+**Wer bin ich (`state.me`, pro Gerät)**
+- Oben die **Avatare B/S** antippen = „das bin ich auf diesem Gerät" (grüner Ring markiert die Auswahl, in `localStorage`).
+- Jeder Verlaufs-Eintrag wird mit dieser Person getaggt (`who`).
+- **Provisorisch**, bis der echte Sync + Login steht: aktuell tippt jeder auf seinem Gerät selbst seinen Avatar an. Namen sind noch Platzhalter (B = Bastian, S = seine Frau).
 
 **Rezept-Scan (📷 oben, neben 🕘)** – aktuell nur **Vorschau**. „Beispiel übernehmen" legt ein paar Zutaten an, um das Zielbild zu zeigen.
 
