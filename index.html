@@ -24,7 +24,7 @@
   body{
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     background:var(--bg);color:var(--ink);
-    padding-bottom:120px;
+    padding-bottom:40px;
     -webkit-font-smoothing:antialiased;
   }
   .app{max-width:640px;margin:0 auto}
@@ -86,27 +86,26 @@
   /* On-list tiles */
   .list .tile{border-color:var(--green-soft)}
   .list .tile .nm{color:var(--green-dark)}
-  .done .tile{opacity:.55}
-  .done .tile .emo{filter:grayscale(1)}
-  .done .tile .nm{text-decoration:line-through;color:var(--muted)}
 
   .empty{color:var(--muted);font-size:14px;text-align:center;padding:22px 10px;
     background:var(--card);border-radius:18px;box-shadow:var(--shadow)}
 
   .cat-h{font-size:14px;font-weight:800;color:var(--ink);margin:22px 4px 12px;display:flex;align-items:center;gap:8px}
 
-  .done-toggle{background:none;border:none;color:var(--muted);font:inherit;font-weight:700;
-    font-size:13px;cursor:pointer;padding:0}
-
-  /* Scan button (floating) */
-  .fab{
-    position:fixed;left:50%;transform:translateX(-50%);
-    bottom:calc(env(safe-area-inset-bottom) + 22px);z-index:30;
-    background:var(--green);color:#fff;border:none;border-radius:30px;
-    padding:15px 24px;font-size:16px;font-weight:800;display:flex;align-items:center;gap:10px;
-    box-shadow:0 8px 24px rgba(46,125,91,.4);cursor:pointer;
-  }
-  .fab:active{transform:translateX(-50%) scale(.96)}
+  /* Verlauf */
+  .head-right{display:flex;align-items:center;gap:12px}
+  .hist-btn{background:var(--card-2);border:1px solid var(--line);color:var(--ink);
+    width:38px;height:38px;border-radius:12px;font-size:18px;cursor:pointer;display:grid;place-items:center}
+  .hist-btn:active{transform:scale(.94)}
+  .hist-list{max-height:52vh;overflow-y:auto;margin-bottom:14px}
+  .hist-row{display:flex;align-items:center;gap:12px;padding:11px 4px;border-bottom:1px solid var(--line);cursor:pointer}
+  .hist-row:active{background:var(--card-2)}
+  .hist-emo{font-size:22px;width:26px;text-align:center;flex:0 0 auto}
+  .hist-main{flex:1;min-width:0}
+  .hist-name{font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hist-meta{font-size:12px;color:var(--muted);margin-top:1px}
+  .hist-readd{font-size:12px;color:var(--green);flex:0 0 auto;font-weight:800}
+  .hist-empty{color:var(--muted);text-align:center;padding:26px 10px}
 
   /* Bottom sheet */
   .sheet-bg{position:fixed;inset:0;background:rgba(15,25,20,.45);z-index:40;
@@ -156,9 +155,13 @@
         <div class="list-name">Unsere Liste</div>
         <div class="subtle" id="subtle">Noch nichts drauf – leg los 🙂</div>
       </div>
-      <div class="avatars">
-        <div class="av b">B</div>
-        <div class="av s">S</div>
+      <div class="head-right">
+        <button class="hist-btn" id="scanBtn" aria-label="Rezept scannen">📷</button>
+        <button class="hist-btn" id="histBtn" aria-label="Verlauf">🕘</button>
+        <div class="avatars">
+          <div class="av b">B</div>
+          <div class="av s">S</div>
+        </div>
       </div>
     </div>
     <div class="searchwrap">
@@ -193,17 +196,9 @@
     <div class="grid list vorrat" id="vorratGrid"></div>
   </section>
 
-  <!-- Done -->
-  <section id="doneSection" style="display:none">
-    <button class="done-toggle" id="doneToggle">✓ Erledigt (<span id="doneCount">0</span>) ▾</button>
-    <div class="grid done" id="doneGrid" style="margin-top:12px"></div>
-  </section>
-
   <!-- Catalog -->
   <section id="catalog"></section>
 </div>
-
-<button class="fab" id="scanBtn">📷 Rezept scannen</button>
 
 <!-- Bottom sheet: quantity -->
 <div class="sheet-bg" id="sheetBg"></div>
@@ -218,7 +213,7 @@
   </div>
   <div class="units" id="units"></div>
   <div class="sheet-actions">
-    <button class="btn btn-ghost" id="removeBtn">Entfernen</button>
+    <button class="btn btn-ghost" id="removeBtn">Abbrechen</button>
     <button class="btn btn-primary" id="saveBtn">Übernehmen</button>
   </div>
 </div>
@@ -238,6 +233,18 @@
   <div class="sheet-actions">
     <button class="btn btn-ghost" id="scanClose">Schließen</button>
     <button class="btn btn-primary" id="scanDemoAdd">Beispiel übernehmen</button>
+  </div>
+</div>
+
+<!-- Bottom sheet: Verlauf -->
+<div class="sheet" id="histSheet">
+  <div class="grab"></div>
+  <h3>🕘 Verlauf</h3>
+  <p class="sub">Was draufgesetzt & gekauft wurde – tippen, um es wieder draufzusetzen</p>
+  <div id="histList" class="hist-list"></div>
+  <div class="sheet-actions">
+    <button class="btn btn-ghost" id="histClear">Verlauf leeren</button>
+    <button class="btn btn-primary" id="histClose">Schließen</button>
   </div>
 </div>
 
@@ -274,8 +281,10 @@ const UNITS = ["g","kg","ml","l"];                  // echte Mengeneinheiten
 const TAGS  = [["Tiefkühl","❄️"],["Vorrat","📦"],["Sonstiges","🛍️"],["Event","🎁"]]; // Marker statt Menge
 const SECTIONS = ["Vorrat","Sonstiges","Event"];    // eigene Bereiche, Menge ausgeblendet
 const KEY = "einkauf_prototyp_v2";
-let state = JSON.parse(localStorage.getItem(KEY) || "null") || { items: [] };
-// items: [ {id, name, emo, qty, unit, done} ]  – gleiches Produkt darf mehrfach vorkommen
+let state = JSON.parse(localStorage.getItem(KEY) || "null") || { items: [], history: [] };
+state.history = state.history || [];
+// items: [ {id, name, emo, qty, unit} ]  – gleiches Produkt darf mehrfach vorkommen
+// history: [ {name, emo, action:'add'|'buy', t} ] – neuester zuerst
 let seq = state.items.reduce((m,i)=>Math.max(m, i.id||0), 0);
 function newId(){ return ++seq; }
 function byId(id){ return state.items.find(i=>i.id===id); }
@@ -297,8 +306,7 @@ function qtyLabel(it){
 
 /* ---------- Render ---------- */
 function render(){
-  const done      = state.items.filter(i=>i.done);
-  const onList    = state.items.filter(i=>!i.done);
+  const onList    = state.items;      // alles bleibt drauf, bis gekauft/entfernt
   const active    = onList.filter(i=>!SECTIONS.includes(i.unit));
   const events    = onList.filter(i=>i.unit==="Event");
   const sonstiges = onList.filter(i=>i.unit==="Sonstiges");
@@ -328,11 +336,6 @@ function render(){
   $("#vorratCount").textContent = vorrat.length;
   $("#vorratGrid").innerHTML = vorrat.map(tileHTML).join("");
 
-  // done
-  $("#doneSection").style.display = done.length? "block":"none";
-  $("#doneCount").textContent = done.length;
-  $("#doneGrid").innerHTML = done.map(tileHTML).join("");
-
   // catalog – badge zeigt, wie oft das Produkt schon auf der Liste steht
   $("#catalog").innerHTML = CATALOG.map(([cat,items])=>{
     const q = ($("#search").value||"").toLowerCase().trim();
@@ -340,7 +343,7 @@ function render(){
     if(!list.length) return "";
     return `<div class="cat-h">${items[0][0]} ${cat}</div>
       <div class="grid">${list.map(([emo,n])=>{
-        const cnt = state.items.filter(i=>!i.done && i.name===n).length;
+        const cnt = state.items.filter(i=>i.name===n).length;
         return `<div class="tile" data-cat="${n}">
           ${cnt? `<span class="qty">${cnt}×</span>`:""}
           <span class="emo">${emo}</span><span class="nm">${n}</span></div>`;
@@ -370,15 +373,21 @@ function tileHTML(it){
 }
 
 /* ---------- Actions ---------- */
-function addItem(name, emo, qty=1, unit="Stück"){
-  state.items.push({ id:newId(), name, emo: emo||emoFor(name), qty, unit, done:false });
+function logHist(it, action){
+  state.history.unshift({ name:it.name, emo:it.emo, action, t:Date.now() });
+  if(state.history.length>200) state.history.length=200;
+}
+function addItem(name, emo, qty=null, unit=null){
+  const it={ id:newId(), name, emo: emo||emoFor(name), qty, unit };
+  state.items.push(it);
+  logHist(it,"add");
   render();
 }
-function toggleDone(id){ const it=byId(id); if(it){ it.done=!it.done; render(); } }
+function buyItem(id){ const it=byId(id); if(!it) return; logHist(it,"buy"); removeItem(id); }  // abhaken = gekauft
 function removeItem(id){ state.items = state.items.filter(i=>i.id!==id); render(); }
 
-/* Tap handling – Einzel-Tipp = Menge, Doppel-Tipp = abhaken (Schutz gegen Versehen) */
-let lastTap = { id:null, t:0, timer:null };
+/* Tap handling – Katalog: Menü zum Draufsetzen. Liste: Doppel-Tipp = abhaken (Schutz gegen Versehen) */
+let lastTap = { id:null, t:0 };
 document.addEventListener("click", e=>{
   const catTile = e.target.closest("[data-cat]");
   const itemTile = e.target.closest("[data-id]");
@@ -388,43 +397,25 @@ document.addEventListener("click", e=>{
   }
   if(itemTile){
     const id = +itemTile.getAttribute("data-id");
-    const it = byId(id);
-    if(!it) return;
-    if(it.done){ toggleDone(id); return; }         // Erledigtes zurückholen: 1 Tipp
-    // Aktiver Artikel: auf Doppel-Tipp warten
+    if(!byId(id)) return;
     const now = Date.now();
-    if(lastTap.id===id && now-lastTap.t < 350){
-      clearTimeout(lastTap.timer);
-      lastTap = { id:null, t:0, timer:null };
-      toggleDone(id);                              // Doppel-Tipp -> abhaken
+    if(lastTap.id===id && now-lastTap.t < 350){    // Doppel-Tipp -> abhaken (gekauft)
+      lastTap = { id:null, t:0 };
+      buyItem(id);
     } else {
-      clearTimeout(lastTap.timer);
-      const t = setTimeout(()=>{ openQty(id); lastTap={id:null,t:0,timer:null}; }, 300);
-      lastTap = { id, t:now, timer:t };            // Einzel-Tipp -> Menge bearbeiten
+      lastTap = { id, t:now };                     // Einzel-Tipp -> nichts (Schutz gegen Versehen)
     }
   }
 });
 
-/* ---------- Quantity sheet ---------- */
-let editing=null, pending=null, tmp={qty:null,unit:"Stück"};
+/* ---------- Mengen-Menü (nur beim Draufsetzen) ---------- */
+let pending=null, tmp={qty:null,unit:null};
 
 function openAdd(name, emo){
-  editing=null; pending={ name, emo: emo||emoFor(name) };
+  pending={ name, emo: emo||emoFor(name) };
   tmp={ qty:null, unit:null };                    // startet ohne Menge
   $("#qtyEmo").textContent=pending.emo;
   $("#qtyName").textContent=name;
-  $("#removeBtn").textContent="Abbrechen";
-  $("#saveBtn").textContent="Übernehmen";
-  drawSheet(); openSheet("#qtySheet");
-}
-function openQty(id){
-  const it=byId(id); if(!it) return;
-  editing=id; pending=null;
-  tmp={ qty:it.qty, unit:it.unit };
-  $("#qtyEmo").textContent=it.emo;
-  $("#qtyName").textContent=it.name;
-  $("#removeBtn").textContent="Entfernen";
-  $("#saveBtn").textContent="Abhaken ✓";
   drawSheet(); openSheet("#qtySheet");
 }
 function stepSize(){
@@ -441,31 +432,26 @@ function drawSheet(){
   const row2 = SECTIONS.map(u=>{ const t=TAGS.find(x=>x[0]===u); return unitChip(u, t[1]+" "+u); }).join("");
   $("#units").innerHTML = row1 + `<div class="unit-break"></div>` + row2;
 }
-function commitLive(){ if(editing){ const it=byId(editing); if(it){ it.qty=tmp.qty; it.unit=tmp.unit; } render(); } }
-$("#plus").onclick =()=>{ tmp.qty = tmp.qty==null ? 1 : tmp.qty+stepSize(); drawSheet(); commitLive(); };
+$("#plus").onclick =()=>{ tmp.qty = tmp.qty==null ? 1 : tmp.qty+stepSize(); drawSheet(); };
 $("#minus").onclick=()=>{
   if(tmp.qty==null) return;
   const n = tmp.qty - stepSize();
   tmp.qty = n<1 ? null : n;                          // unter 1 -> wieder "ohne Menge"
-  drawSheet(); commitLive();
+  drawSheet();
 };
 $("#units").onclick=e=>{
   const el=e.target.closest("[data-unit]"); if(!el) return;
   const u=el.getAttribute("data-unit");
   if(tmp.unit===u){ tmp.unit=null; }                // nochmal tippen = abwählen (einfache Zahl)
   else { tmp.unit=u; if(UNITS.includes(u) && tmp.qty==null) tmp.qty=1; }  // nur echte Mengen setzen 1
-  drawSheet(); commitLive();
+  drawSheet();
 };
-$("#saveBtn").onclick=()=>{
-  if(pending){ addItem(pending.name, pending.emo, tmp.qty, tmp.unit); }   // neu -> drauf damit
-  else { const it=byId(editing); if(it){ it.qty=tmp.qty; it.unit=tmp.unit; it.done=true; } render(); }  // bearbeiten -> abhaken
-  closeSheet();
-};
-$("#removeBtn").onclick=()=>{ if(editing) removeItem(editing); closeSheet(); };
+$("#saveBtn").onclick=()=>{ if(pending) addItem(pending.name, pending.emo, tmp.qty, tmp.unit); closeSheet(); };
+$("#removeBtn").onclick=()=>{ closeSheet(); };   // Abbrechen
 
 /* ---------- Sheets ---------- */
 function openSheet(sel){ $("#sheetBg").classList.add("open"); $(sel).classList.add("open"); }
-function closeSheet(){ $("#sheetBg").classList.remove("open"); $("#qtySheet").classList.remove("open"); $("#scanSheet").classList.remove("open"); }
+function closeSheet(){ $("#sheetBg").classList.remove("open"); $("#qtySheet").classList.remove("open"); $("#scanSheet").classList.remove("open"); $("#histSheet").classList.remove("open"); }
 $("#sheetBg").onclick=closeSheet;
 
 /* ---------- Search / custom add ---------- */
@@ -491,15 +477,43 @@ $("#scanBtn").onclick=()=>openSheet("#scanSheet");
 $("#scanClose").onclick=closeSheet;
 $("#scanDemoAdd").onclick=()=>{
   addItem("Mehl","🌾",500,"g");
-  addItem("Eier","🥚",3,"Stück");
+  addItem("Eier","🥚",3,null);
   addItem("Milch","🥛",200,"ml");
   addItem("Butter","🧈",100,"g");
   closeSheet();
 };
 
-/* ---------- Toggle done section ---------- */
-let doneOpen=true;
-$("#doneToggle").onclick=()=>{ doneOpen=!doneOpen; $("#doneGrid").style.display=doneOpen?"grid":"none"; };
+/* ---------- Verlauf ---------- */
+function relTime(t){
+  const pad=n=>String(n).padStart(2,"0");
+  const d=new Date(t), now=new Date();
+  const hm=pad(d.getHours())+":"+pad(d.getMinutes());
+  const day=x=>x.toDateString();
+  const y=new Date(now); y.setDate(now.getDate()-1);
+  if(day(d)===day(now)) return "heute "+hm;
+  if(day(d)===day(y))   return "gestern "+hm;
+  return pad(d.getDate())+"."+pad(d.getMonth()+1)+". "+hm;
+}
+function renderHistory(){
+  const h=state.history;
+  $("#histList").innerHTML = h.length ? h.map((e,i)=>`
+    <div class="hist-row" data-hist="${i}">
+      <span class="hist-emo">${e.emo}</span>
+      <div class="hist-main">
+        <div class="hist-name">${e.name}</div>
+        <div class="hist-meta">${e.action==="buy"?"🛒 gekauft":"➕ draufgesetzt"} · ${relTime(e.t)}</div>
+      </div>
+      <span class="hist-readd">+ dazu</span>
+    </div>`).join("") : `<div class="hist-empty">Noch nichts passiert.</div>`;
+}
+$("#histBtn").onclick=()=>{ renderHistory(); openSheet("#histSheet"); };
+$("#histClose").onclick=closeSheet;
+$("#histClear").onclick=()=>{ state.history=[]; save(); renderHistory(); };
+$("#histList").onclick=e=>{
+  const row=e.target.closest("[data-hist]"); if(!row) return;
+  const ev=state.history[+row.getAttribute("data-hist")];
+  if(ev){ addItem(ev.name, ev.emo); closeSheet(); }   // wieder draufsetzen
+};
 
 render();
 </script>
