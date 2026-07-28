@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2e7d5b">
+<title>Unsere Einkaufsliste</title>
+<style>
+  :root{
+    --green:#3ea57a;
+    --green-dark:#2e7d5b;
+    --green-soft:#16261e;
+    --bg:#000000;          /* true black – OLED-Pixel aus = Strom gespart */
+    --card:#141814;
+    --card-2:#1c211c;
+    --ink:#e9efea;
+    --muted:#7f887f;
+    --line:#262b26;
+    --shadow:0 1px 2px rgba(0,0,0,.5);
+    --radius:20px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--ink);
+    padding-bottom:120px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{max-width:640px;margin:0 auto}
+
+  /* Header */
+  header{
+    position:sticky;top:0;z-index:20;
+    background:#0a0d0a;
+    color:var(--ink);
+    padding:calc(env(safe-area-inset-top) + 16px) 20px 18px;
+    border-radius:0 0 26px 26px;
+    border-bottom:1px solid var(--line);
+  }
+  .head-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .list-name{font-size:22px;font-weight:800;letter-spacing:-.3px;display:flex;align-items:center;gap:8px;color:var(--green)}
+  .chev{opacity:.7;font-size:15px}
+  .avatars{display:flex}
+  .av{width:34px;height:34px;border-radius:50%;border:2px solid #0a0d0a;
+      display:grid;place-items:center;font-weight:700;font-size:13px;color:#fff;margin-left:-8px}
+  .av.b{background:#d98736}
+  .av.s{background:#c65f7e}
+  .subtle{color:var(--muted);font-size:13px;margin-top:2px}
+
+  /* Search / add bar */
+  .searchwrap{margin-top:16px;position:relative}
+  .search{
+    width:100%;border:none;border-radius:16px;padding:14px 46px 14px 44px;
+    font-size:16px;background:var(--card-2);color:var(--ink);
+    box-shadow:inset 0 0 0 1px var(--line);
+  }
+  .search::placeholder{color:var(--muted)}
+  .search-ico{position:absolute;left:15px;top:50%;transform:translateY(-50%);opacity:.5;font-size:16px}
+  .add-hint{position:absolute;right:8px;top:50%;transform:translateY(-50%);
+    background:var(--green-dark);color:#fff;border:none;border-radius:12px;
+    padding:8px 12px;font-weight:700;font-size:14px;display:none;cursor:pointer}
+  .add-hint.show{display:block}
+
+  /* Sections */
+  section{padding:20px 16px 0}
+  .sec-title{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;
+    letter-spacing:.6px;margin:0 4px 12px;display:flex;align-items:center;gap:8px}
+  .count{background:var(--green-soft);color:var(--green-dark);border-radius:20px;
+    padding:1px 9px;font-size:12px;font-weight:800}
+
+  /* Grid of tiles */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:10px}
+  .tile{
+    background:var(--card);border-radius:18px;padding:12px 6px 10px;text-align:center;
+    box-shadow:var(--shadow);position:relative;cursor:pointer;border:2px solid transparent;
+    transition:transform .08s ease, border-color .15s ease;user-select:none;
+  }
+  .tile:active{transform:scale(.94)}
+  .tile .emo{font-size:30px;line-height:1;display:block;margin:4px 0 6px}
+  .tile .nm{font-size:12.5px;font-weight:600;line-height:1.15;color:var(--ink);
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:29px}
+  .tile .qty{position:absolute;top:-7px;right:-7px;background:var(--green);color:#fff;
+    font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;box-shadow:0 2px 6px rgba(46,125,91,.35);
+    min-width:22px}
+  /* On-list tiles */
+  .list .tile{border-color:var(--green-soft)}
+  .list .tile .nm{color:var(--green-dark)}
+  .done .tile{opacity:.55}
+  .done .tile .emo{filter:grayscale(1)}
+  .done .tile .nm{text-decoration:line-through;color:var(--muted)}
+
+  .empty{color:var(--muted);font-size:14px;text-align:center;padding:22px 10px;
+    background:var(--card);border-radius:18px;box-shadow:var(--shadow)}
+
+  .cat-h{font-size:14px;font-weight:800;color:var(--ink);margin:22px 4px 12px;display:flex;align-items:center;gap:8px}
+
+  .done-toggle{background:none;border:none;color:var(--muted);font:inherit;font-weight:700;
+    font-size:13px;cursor:pointer;padding:0}
+
+  /* Scan button (floating) */
+  .fab{
+    position:fixed;left:50%;transform:translateX(-50%);
+    bottom:calc(env(safe-area-inset-bottom) + 22px);z-index:30;
+    background:var(--green);color:#fff;border:none;border-radius:30px;
+    padding:15px 24px;font-size:16px;font-weight:800;display:flex;align-items:center;gap:10px;
+    box-shadow:0 8px 24px rgba(46,125,91,.4);cursor:pointer;
+  }
+  .fab:active{transform:translateX(-50%) scale(.96)}
+
+  /* Bottom sheet */
+  .sheet-bg{position:fixed;inset:0;background:rgba(15,25,20,.45);z-index:40;
+    opacity:0;pointer-events:none;transition:opacity .2s}
+  .sheet-bg.open{opacity:1;pointer-events:auto}
+  .sheet{position:fixed;left:0;right:0;bottom:0;z-index:41;background:var(--card);
+    border-radius:26px 26px 0 0;padding:22px 20px calc(env(safe-area-inset-bottom) + 26px);
+    max-width:640px;margin:0 auto;transform:translateY(110%);transition:transform .25s cubic-bezier(.3,.9,.4,1);
+    box-shadow:0 -10px 40px rgba(0,0,0,.18)}
+  .sheet.open{transform:translateY(0)}
+  .grab{width:40px;height:5px;background:var(--line);border-radius:5px;margin:0 auto 16px}
+  .sheet h3{margin:0 0 4px;font-size:19px;display:flex;align-items:center;gap:10px}
+  .sheet .sub{color:var(--muted);font-size:14px;margin:0 0 18px}
+  .qtyrow{display:flex;align-items:center;gap:14px;justify-content:center;margin:8px 0 20px}
+  .step{width:48px;height:48px;border-radius:14px;border:none;background:var(--card-2);
+    color:var(--green);font-size:26px;font-weight:700;cursor:pointer}
+  .step:active{transform:scale(.92)}
+  .amount{font-size:30px;font-weight:800;min-width:70px;text-align:center}
+  .amount.none{font-size:19px;color:var(--muted);font-weight:700}
+  .units{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:22px}
+  .unit{border:1.5px solid var(--line);background:var(--card-2);border-radius:12px;padding:9px 14px;
+    font-size:14px;font-weight:700;color:var(--muted);cursor:pointer}
+  .unit.active{background:var(--green);border-color:var(--green);color:#fff}
+  .sheet-actions{display:flex;gap:10px}
+  .btn{flex:1;border:none;border-radius:15px;padding:15px;font-size:16px;font-weight:800;cursor:pointer}
+  .btn-primary{background:var(--green);color:#fff}
+  .btn-ghost{background:var(--card-2);color:var(--muted);flex:0 0 auto;padding:15px 18px}
+  .scan-demo{background:var(--green-soft);border-radius:16px;padding:16px;margin:6px 0 20px;font-size:14px;line-height:1.5;color:#a7e2c4}
+  .scan-demo b{color:#c9f0dc}
+  .demo-tag{display:inline-block;background:#fff3d9;color:#a26a00;font-size:11px;font-weight:800;
+    padding:3px 9px;border-radius:20px;margin-left:6px;vertical-align:middle}
+  #vorratHint{display:none;text-align:center;color:#a7e2c4;background:var(--green-soft);
+    border-radius:14px;padding:12px 14px;font-size:13.5px;line-height:1.5;margin:0 0 20px}
+  #vorratHint b{color:#c9f0dc}
+  /* Vorrat-Bereich: optisch „optional" – gestrichelt & etwas ruhiger */
+  .band{border-top:1px dashed var(--line);margin:26px 4px 0;padding-top:4px}
+  .list.vorrat .tile{border:1.5px dashed #33463c;background:#10140f;opacity:.92}
+  .list.vorrat .tile .nm{color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="head-top">
+      <div>
+        <div class="list-name">Unsere Liste</div>
+        <div class="subtle" id="subtle">Noch nichts drauf – leg los 🙂</div>
+      </div>
+      <div class="avatars">
+        <div class="av b">B</div>
+        <div class="av s">S</div>
+      </div>
+    </div>
+    <div class="searchwrap">
+      <span class="search-ico">🔍</span>
+      <input class="search" id="search" placeholder="Suchen oder eigenes hinzufügen…" autocomplete="off">
+      <button class="add-hint" id="addHint">Hinzufügen</button>
+    </div>
+  </header>
+
+  <!-- Active list -->
+  <section>
+    <div class="sec-title">Auf der Liste <span class="count" id="activeCount">0</span></div>
+    <div class="grid list" id="activeGrid"></div>
+    <div class="empty" id="activeEmpty">Tippe unten ein Produkt an, um es hinzuzufügen.</div>
+  </section>
+
+  <!-- Event -->
+  <section id="eventSection" style="display:none">
+    <div class="sec-title band">🎁 Event <span class="count" id="eventCount">0</span></div>
+    <div class="grid list" id="eventGrid"></div>
+  </section>
+
+  <!-- Sonstiges -->
+  <section id="sonstSection" style="display:none">
+    <div class="sec-title band">🛍️ Sonstiges <span class="count" id="sonstCount">0</span></div>
+    <div class="grid list" id="sonstGrid"></div>
+  </section>
+
+  <!-- Vorrat -->
+  <section id="vorratSection" style="display:none">
+    <div class="sec-title band">📦 Vorrat – kann, muss nicht <span class="count" id="vorratCount">0</span></div>
+    <div class="grid list vorrat" id="vorratGrid"></div>
+  </section>
+
+  <!-- Done -->
+  <section id="doneSection" style="display:none">
+    <button class="done-toggle" id="doneToggle">✓ Erledigt (<span id="doneCount">0</span>) ▾</button>
+    <div class="grid done" id="doneGrid" style="margin-top:12px"></div>
+  </section>
+
+  <!-- Catalog -->
+  <section id="catalog"></section>
+</div>
+
+<button class="fab" id="scanBtn">📷 Rezept scannen</button>
+
+<!-- Bottom sheet: quantity -->
+<div class="sheet-bg" id="sheetBg"></div>
+<div class="sheet" id="qtySheet">
+  <div class="grab"></div>
+  <h3><span id="qtyEmo">🍎</span> <span id="qtyName">Produkt</span></h3>
+  <p class="sub" id="qtySub" style="display:none"></p>
+  <div class="qtyrow" id="qtyrow">
+    <button class="step" id="minus">−</button>
+    <div class="amount" id="amount">ohne</div>
+    <button class="step" id="plus">+</button>
+  </div>
+  <div class="units" id="units"></div>
+  <div class="sheet-actions">
+    <button class="btn btn-ghost" id="removeBtn">Entfernen</button>
+    <button class="btn btn-primary" id="saveBtn">Übernehmen</button>
+  </div>
+</div>
+
+<!-- Bottom sheet: scan demo -->
+<div class="sheet" id="scanSheet">
+  <div class="grab"></div>
+  <h3>📷 Rezept scannen <span class="demo-tag">Vorschau</span></h3>
+  <p class="sub">So wird es später funktionieren</p>
+  <div class="scan-demo">
+    Du fotografierst die <b>Zutatenliste</b> (z.&nbsp;B. bei Chefkoch) → die App liest automatisch
+    <b>Zutat + Menge + Einheit</b> heraus und setzt alles auf die Liste.<br><br>
+    <b>Beispiel-Erkennung:</b><br>
+    🌾 Mehl · 500 g &nbsp;&nbsp; 🥚 Eier · 3 Stück<br>
+    🥛 Milch · 200 ml &nbsp;&nbsp; 🧈 Butter · 100 g
+  </div>
+  <div class="sheet-actions">
+    <button class="btn btn-ghost" id="scanClose">Schließen</button>
+    <button class="btn btn-primary" id="scanDemoAdd">Beispiel übernehmen</button>
+  </div>
+</div>
+
+<script>
+/* ---------- Katalog ---------- */
+const CATALOG = [
+  ["Obst & Gemüse", [
+    ["🍎","Äpfel"],["🍌","Bananen"],["🍅","Tomaten"],["🥔","Kartoffeln"],
+    ["🧅","Zwiebeln"],["🥕","Karotten"],["🥬","Salat"],["🥒","Gurke"],
+    ["🍋","Zitrone"],["🫑","Paprika"],["🧄","Knoblauch"],["🍄","Champignons"],["🥑","Avocado"],["🍓","Erdbeeren"]
+  ]],
+  ["Milch & Kühlung", [
+    ["🥛","Milch"],["🧈","Butter"],["🧀","Käse"],["🥚","Eier"],
+    ["🍦","Joghurt"],["🥣","Quark"],["🥓","Speck"],["🍶","Sahne"]
+  ]],
+  ["Brot & Backen", [
+    ["🍞","Brot"],["🥖","Baguette"],["🥐","Brötchen"],["🌾","Mehl"],
+    ["🍚","Reis"],["🍝","Nudeln"],["🧂","Salz"],["🍬","Zucker"],["🥣","Haferflocken"]
+  ]],
+  ["Fleisch & Fisch", [
+    ["🍗","Hähnchen"],["🥩","Rindfleisch"],["🐟","Fisch"],["🌭","Würstchen"],["🍖","Hackfleisch"]
+  ]],
+  ["Getränke", [
+    ["💧","Wasser"],["🧃","Saft"],["☕","Kaffee"],["🍺","Bier"],["🍷","Wein"],["🥤","Cola"],["🫖","Tee"]
+  ]],
+  ["Vorrat & Sonstiges", [
+    ["🥫","Tomatensoße"],["🫒","Öl"],["🍫","Schokolade"],["🥜","Nüsse"],
+    ["🧻","Klopapier"],["🧼","Spülmittel"],["🍯","Honig"],["🥜","Erdnussbutter"]
+  ]]
+];
+
+/* ---------- State ---------- */
+const UNITS = ["g","kg","ml","l"];                  // echte Mengeneinheiten
+const TAGS  = [["Tiefkühl","❄️"],["Vorrat","📦"],["Sonstiges","🛍️"],["Event","🎁"]]; // Marker statt Menge
+const SECTIONS = ["Vorrat","Sonstiges","Event"];    // eigene Bereiche, Menge ausgeblendet
+const KEY = "einkauf_prototyp_v2";
+let state = JSON.parse(localStorage.getItem(KEY) || "null") || { items: [] };
+// items: [ {id, name, emo, qty, unit, done} ]  – gleiches Produkt darf mehrfach vorkommen
+let seq = state.items.reduce((m,i)=>Math.max(m, i.id||0), 0);
+function newId(){ return ++seq; }
+function byId(id){ return state.items.find(i=>i.id===id); }
+function save(){ localStorage.setItem(KEY, JSON.stringify(state)); }
+
+/* ---------- Helpers ---------- */
+const $ = s => document.querySelector(s);
+function emoFor(name){
+  for(const [,items] of CATALOG){ for(const [emo,n] of items){ if(n===name) return emo; } }
+  return "🛒";
+}
+function qtyLabel(it){
+  if(SECTIONS.includes(it.unit)) return "";                  // eigener Bereich zeigt es schon
+  if(it.unit==="Tiefkühl") return it.qty==null ? "❄️" : "❄️ "+it.qty;
+  if(it.qty==null) return "";                                // keine Menge -> kein Badge
+  if(!it.unit) return String(it.qty);                        // einfache Zahl, keine Einheit
+  return it.qty+" "+it.unit;                                 // g / kg / ml / l
+}
+
+/* ---------- Render ---------- */
+function render(){
+  const done      = state.items.filter(i=>i.done);
+  const onList    = state.items.filter(i=>!i.done);
+  const active    = onList.filter(i=>!SECTIONS.includes(i.unit));
+  const events    = onList.filter(i=>i.unit==="Event");
+  const sonstiges = onList.filter(i=>i.unit==="Sonstiges");
+  const vorrat    = onList.filter(i=>i.unit==="Vorrat");
+  const toBuy = active.length + events.length + sonstiges.length;   // Vorrat zählt bewusst NICHT mit
+
+  // header
+  $("#subtle").textContent = toBuy ? toBuy+" Artikel zu kaufen" : "Noch nichts drauf – leg los 🙂";
+
+  // „Auf der Liste" – Zähler enthält auch Event + Sonstiges
+  $("#activeGrid").innerHTML = active.map(tileHTML).join("");
+  $("#activeCount").textContent = toBuy;
+  $("#activeEmpty").style.display = toBuy? "none":"block";
+
+  // Event
+  $("#eventSection").style.display = events.length? "block":"none";
+  $("#eventCount").textContent = events.length;
+  $("#eventGrid").innerHTML = events.map(tileHTML).join("");
+
+  // Sonstiges
+  $("#sonstSection").style.display = sonstiges.length? "block":"none";
+  $("#sonstCount").textContent = sonstiges.length;
+  $("#sonstGrid").innerHTML = sonstiges.map(tileHTML).join("");
+
+  // Vorrat
+  $("#vorratSection").style.display = vorrat.length? "block":"none";
+  $("#vorratCount").textContent = vorrat.length;
+  $("#vorratGrid").innerHTML = vorrat.map(tileHTML).join("");
+
+  // done
+  $("#doneSection").style.display = done.length? "block":"none";
+  $("#doneCount").textContent = done.length;
+  $("#doneGrid").innerHTML = done.map(tileHTML).join("");
+
+  // catalog – badge zeigt, wie oft das Produkt schon auf der Liste steht
+  $("#catalog").innerHTML = CATALOG.map(([cat,items])=>{
+    const q = ($("#search").value||"").toLowerCase().trim();
+    const list = items.filter(([,n])=> !q || n.toLowerCase().includes(q));
+    if(!list.length) return "";
+    return `<div class="cat-h">${items[0][0]} ${cat}</div>
+      <div class="grid">${list.map(([emo,n])=>{
+        const cnt = state.items.filter(i=>!i.done && i.name===n).length;
+        return `<div class="tile" data-cat="${n}">
+          ${cnt? `<span class="qty">${cnt}×</span>`:""}
+          <span class="emo">${emo}</span><span class="nm">${n}</span></div>`;
+      }).join("")}</div>`;
+  }).join("");
+
+  save();
+}
+function tileHTML(it){
+  const q = qtyLabel(it);
+  return `<div class="tile" data-id="${it.id}">
+    ${q? `<span class="qty">${q}</span>`:""}
+    <span class="emo">${it.emo}</span><span class="nm">${it.name}</span></div>`;
+}
+
+/* ---------- Actions ---------- */
+function addItem(name, emo, qty=1, unit="Stück"){
+  state.items.push({ id:newId(), name, emo: emo||emoFor(name), qty, unit, done:false });
+  render();
+}
+function toggleDone(id){ const it=byId(id); if(it){ it.done=!it.done; render(); } }
+function removeItem(id){ state.items = state.items.filter(i=>i.id!==id); render(); }
+
+/* Tap handling – Einzel-Tipp = Menge, Doppel-Tipp = abhaken (Schutz gegen Versehen) */
+let lastTap = { id:null, t:0, timer:null };
+document.addEventListener("click", e=>{
+  const catTile = e.target.closest("[data-cat]");
+  const itemTile = e.target.closest("[data-id]");
+  if(catTile){
+    openAdd(catTile.getAttribute("data-cat"));    // Menü öffnen -> mit oder ohne Menge übernehmen
+    return;
+  }
+  if(itemTile){
+    const id = +itemTile.getAttribute("data-id");
+    const it = byId(id);
+    if(!it) return;
+    if(it.done){ toggleDone(id); return; }         // Erledigtes zurückholen: 1 Tipp
+    // Aktiver Artikel: auf Doppel-Tipp warten
+    const now = Date.now();
+    if(lastTap.id===id && now-lastTap.t < 350){
+      clearTimeout(lastTap.timer);
+      lastTap = { id:null, t:0, timer:null };
+      toggleDone(id);                              // Doppel-Tipp -> abhaken
+    } else {
+      clearTimeout(lastTap.timer);
+      const t = setTimeout(()=>{ openQty(id); lastTap={id:null,t:0,timer:null}; }, 300);
+      lastTap = { id, t:now, timer:t };            // Einzel-Tipp -> Menge bearbeiten
+    }
+  }
+});
+
+/* ---------- Quantity sheet ---------- */
+let editing=null, pending=null, tmp={qty:null,unit:"Stück"};
+
+function openAdd(name, emo){
+  editing=null; pending={ name, emo: emo||emoFor(name) };
+  tmp={ qty:null, unit:null };                    // startet ohne Menge
+  $("#qtyEmo").textContent=pending.emo;
+  $("#qtyName").textContent=name;
+  $("#removeBtn").textContent="Abbrechen";
+  drawSheet(); openSheet("#qtySheet");
+}
+function openQty(id){
+  const it=byId(id); if(!it) return;
+  editing=id; pending=null;
+  tmp={ qty:it.qty, unit:it.unit };
+  $("#qtyEmo").textContent=it.emo;
+  $("#qtyName").textContent=it.name;
+  $("#removeBtn").textContent="Entfernen";
+  drawSheet(); openSheet("#qtySheet");
+}
+function stepSize(){
+  if(tmp.unit==="g"||tmp.unit==="ml") return tmp.qty>=100?50:tmp.qty>=10?10:1;
+  return 1;                                         // einfache Zahl, kg, l, Tiefkühl
+}
+function unitChip(u,label){ return `<div class="unit ${tmp.unit===u?'active':''}" data-unit="${u}">${label}</div>`; }
+function drawSheet(){
+  const hideQty = SECTIONS.includes(tmp.unit);
+  $("#qtyrow").style.display = hideQty ? "none" : "flex";
+  $("#amount").textContent = tmp.qty==null ? "ohne" : tmp.qty;
+  $("#amount").classList.toggle("none", tmp.qty==null);
+  $("#units").innerHTML =
+    UNITS.map(u=>unitChip(u,u)).join("") +
+    TAGS.map(([u,e])=>unitChip(u, e+" "+u)).join("");
+}
+$("#plus").onclick =()=>{ tmp.qty = tmp.qty==null ? 1 : tmp.qty+stepSize(); drawSheet(); };
+$("#minus").onclick=()=>{
+  if(tmp.qty==null) return;
+  const n = tmp.qty - stepSize();
+  tmp.qty = n<1 ? null : n;                          // unter 1 -> wieder "ohne Menge"
+  drawSheet();
+};
+$("#units").onclick=e=>{
+  const el=e.target.closest("[data-unit]"); if(!el) return;
+  const u=el.getAttribute("data-unit");
+  if(tmp.unit===u){ tmp.unit=null; }                // nochmal tippen = abwählen (einfache Zahl)
+  else { tmp.unit=u; if(UNITS.includes(u) && tmp.qty==null) tmp.qty=1; }  // nur echte Mengen setzen 1
+  drawSheet();
+};
+$("#saveBtn").onclick=()=>{
+  if(pending){ addItem(pending.name, pending.emo, tmp.qty, tmp.unit); }
+  else { const it=byId(editing); if(it){ it.qty=tmp.qty; it.unit=tmp.unit; } render(); }
+  closeSheet();
+};
+$("#removeBtn").onclick=()=>{ if(editing) removeItem(editing); closeSheet(); };
+$("#saveBtn").textContent="Übernehmen";
+
+/* ---------- Sheets ---------- */
+function openSheet(sel){ $("#sheetBg").classList.add("open"); $(sel).classList.add("open"); }
+function closeSheet(){ $("#sheetBg").classList.remove("open"); $("#qtySheet").classList.remove("open"); $("#scanSheet").classList.remove("open"); }
+$("#sheetBg").onclick=closeSheet;
+
+/* ---------- Search / custom add ---------- */
+const searchEl=$("#search");
+searchEl.addEventListener("input",()=>{
+  const v=searchEl.value.trim();
+  const known=CATALOG.some(([,items])=>items.some(([,n])=>n.toLowerCase()===v.toLowerCase()));
+  $("#addHint").classList.toggle("show", v.length>0 && !known);
+  render();
+});
+function commitCustom(){
+  const v=searchEl.value.trim();
+  if(!v) return;
+  const name=v.charAt(0).toUpperCase()+v.slice(1);
+  searchEl.value=""; $("#addHint").classList.remove("show"); render();
+  openAdd(name, "🛒");                    // eigenes Produkt auch übers Menü
+}
+$("#addHint").onclick=commitCustom;
+searchEl.addEventListener("keydown",e=>{ if(e.key==="Enter") commitCustom(); });
+
+/* ---------- Scan demo ---------- */
+$("#scanBtn").onclick=()=>openSheet("#scanSheet");
+$("#scanClose").onclick=closeSheet;
+$("#scanDemoAdd").onclick=()=>{
+  addItem("Mehl","🌾",500,"g");
+  addItem("Eier","🥚",3,"Stück");
+  addItem("Milch","🥛",200,"ml");
+  addItem("Butter","🧈",100,"g");
+  closeSheet();
+};
+
+/* ---------- Toggle done section ---------- */
+let doneOpen=true;
+$("#doneToggle").onclick=()=>{ doneOpen=!doneOpen; $("#doneGrid").style.display=doneOpen?"grid":"none"; };
+
+render();
+</script>
+</body>
+</html>
