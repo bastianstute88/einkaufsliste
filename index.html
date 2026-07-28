@@ -79,7 +79,9 @@
   .tile:active{transform:scale(.94)}
   .tile .emo{font-size:30px;line-height:1;display:block;margin:4px 0 6px}
   .tile .nm{font-size:12.5px;font-weight:600;line-height:1.15;color:var(--ink);
-    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:29px}
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:29px;
+    overflow-wrap:anywhere;hyphens:auto}
+  .tile .nm.long{font-size:10.5px;line-height:1.1}
   .tile .qty{position:absolute;top:-7px;right:-7px;background:var(--green);color:#fff;
     font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;box-shadow:0 2px 6px rgba(46,125,91,.35);
     min-width:22px}
@@ -343,7 +345,7 @@ function render(){
         const cnt = state.items.filter(i=>!i.done && i.name===n).length;
         return `<div class="tile" data-cat="${n}">
           ${cnt? `<span class="qty">${cnt}×</span>`:""}
-          <span class="emo">${emo}</span><span class="nm">${n}</span></div>`;
+          <span class="emo">${emo}</span><span class="nm${n.length>11?' long':''}">${n}</span></div>`;
       }).join("")}</div>`;
   }).join("");
 
@@ -353,7 +355,7 @@ function tileHTML(it){
   const q = qtyLabel(it);
   return `<div class="tile" data-id="${it.id}">
     ${q? `<span class="qty">${q}</span>`:""}
-    <span class="emo">${it.emo}</span><span class="nm">${it.name}</span></div>`;
+    <span class="emo">${it.emo}</span><span class="nm${it.name.length>11?' long':''}">${it.name}</span></div>`;
 }
 
 /* ---------- Actions ---------- */
