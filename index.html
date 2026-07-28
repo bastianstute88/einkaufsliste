@@ -414,6 +414,7 @@ function openAdd(name, emo){
   $("#qtyEmo").textContent=pending.emo;
   $("#qtyName").textContent=name;
   $("#removeBtn").textContent="Abbrechen";
+  $("#saveBtn").textContent="Übernehmen";
   drawSheet(); openSheet("#qtySheet");
 }
 function openQty(id){
@@ -423,6 +424,7 @@ function openQty(id){
   $("#qtyEmo").textContent=it.emo;
   $("#qtyName").textContent=it.name;
   $("#removeBtn").textContent="Entfernen";
+  $("#saveBtn").textContent="Abhaken ✓";
   drawSheet(); openSheet("#qtySheet");
 }
 function stepSize(){
@@ -439,27 +441,27 @@ function drawSheet(){
   const row2 = SECTIONS.map(u=>{ const t=TAGS.find(x=>x[0]===u); return unitChip(u, t[1]+" "+u); }).join("");
   $("#units").innerHTML = row1 + `<div class="unit-break"></div>` + row2;
 }
-$("#plus").onclick =()=>{ tmp.qty = tmp.qty==null ? 1 : tmp.qty+stepSize(); drawSheet(); };
+function commitLive(){ if(editing){ const it=byId(editing); if(it){ it.qty=tmp.qty; it.unit=tmp.unit; } render(); } }
+$("#plus").onclick =()=>{ tmp.qty = tmp.qty==null ? 1 : tmp.qty+stepSize(); drawSheet(); commitLive(); };
 $("#minus").onclick=()=>{
   if(tmp.qty==null) return;
   const n = tmp.qty - stepSize();
   tmp.qty = n<1 ? null : n;                          // unter 1 -> wieder "ohne Menge"
-  drawSheet();
+  drawSheet(); commitLive();
 };
 $("#units").onclick=e=>{
   const el=e.target.closest("[data-unit]"); if(!el) return;
   const u=el.getAttribute("data-unit");
   if(tmp.unit===u){ tmp.unit=null; }                // nochmal tippen = abwählen (einfache Zahl)
   else { tmp.unit=u; if(UNITS.includes(u) && tmp.qty==null) tmp.qty=1; }  // nur echte Mengen setzen 1
-  drawSheet();
+  drawSheet(); commitLive();
 };
 $("#saveBtn").onclick=()=>{
-  if(pending){ addItem(pending.name, pending.emo, tmp.qty, tmp.unit); }
-  else { const it=byId(editing); if(it){ it.qty=tmp.qty; it.unit=tmp.unit; } render(); }
+  if(pending){ addItem(pending.name, pending.emo, tmp.qty, tmp.unit); }   // neu -> drauf damit
+  else { const it=byId(editing); if(it){ it.qty=tmp.qty; it.unit=tmp.unit; it.done=true; } render(); }  // bearbeiten -> abhaken
   closeSheet();
 };
 $("#removeBtn").onclick=()=>{ if(editing) removeItem(editing); closeSheet(); };
-$("#saveBtn").textContent="Übernehmen";
 
 /* ---------- Sheets ---------- */
 function openSheet(sel){ $("#sheetBg").classList.add("open"); $(sel).classList.add("open"); }
