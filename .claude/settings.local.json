@@ -9,7 +9,11 @@
       "Bash(exit 1)",
       "Bash(git init *)",
       "Bash(git add *)",
-      "Bash(git -c user.name=bastianstute88 -c user.email=bastian.stute.88@gmail.com commit -q -m ' *)"
+      "Bash(git -c user.name=bastianstute88 -c user.email=bastian.stute.88@gmail.com commit -q -m ' *)",
+      "Bash(gh repo *)",
+      "Bash(gh api *)",
+      "Bash(osascript -e 'tell application \"Google Chrome\" *)",
+      "Bash(git push *)"
     ]
   }
 }
