@@ -1,7 +1,8 @@
 # Einkaufslisten-App – Projektdokumentation
 
 Eine eigene Einkaufslisten-App (Bring-Ersatz) für Bastian und seine Frau.
-Stand: Optik-/Interaktions-Prototyp, wird für Feedback geteilt.
+
+**Stand (zuletzt aktualisiert):** Optik + Interaktion abgenommen, Katalog auf ~130 Produkte (11 Kategorien) erweitert. Läuft noch rein lokal (localStorage), wird für Feedback geteilt. **Als Nächstes dran: Datenbank + Login (Schritt 2 des Fahrplans).**
 
 ---
 
@@ -108,15 +109,24 @@ git push origin main
 
 ---
 
-## 7. Nächste Schritte (offen)
+## 7. Fahrplan / Nächste Schritte
 
-1. **Gemeinsame Live-Liste mit Login** – damit beide dieselbe Liste in Echtzeit sehen.
-   Kostenlos machbar mit **Supabase** oder **Firebase** (Realtime + Auth, Free-Tier).
-   Erst hier wird Zugriffsschutz relevant → Login, damit nur die zwei reinkommen.
-2. **Echter Rezept-Scan** – Foto → Zutaten + Mengen automatisch.
+Reihenfolge mit Bastian abgestimmt: von „braucht nichts" → „braucht Konto" → „braucht KI".
+
+1. ✅ **Mehr Produkte** – erledigt (Katalog auf ~130 Produkte / 11 Kategorien erweitert).
+2. ⏭️ **Datenbank + Login** (NÄCHSTER SCHRITT, ein Schritt, nicht zwei) – **Supabase** (kostenloser Tarif).
+   - Gibt: gemeinsame **Live-Liste** (Sync zwischen beiden Geräten) + **Login** + echtes „wer hat was gemacht".
+   - App bleibt **statisch auf GitHub Pages** und redet per Client-SDK mit Supabase (Anon-Key ist public-safe).
+   - **Zugriffsschutz per Row-Level-Security**: „anmelden" kann jeder, aber auf DIE Liste kommen nur die **hinterlegten 2 Konten** (Bastians + Frau-E-Mail als Mitglieder). Fremde sehen/ändern nichts.
+   - **Login-Methode noch offen** – zur Auswahl gestellt, noch nicht entschieden:
+     - **Google-Login** (beide haben Gmail): 1 Tipp, liefert **echte Namen + Profilfotos automatisch** → macht das „wer"-Feature richtig hübsch. Etwas mehr Einrichtung (OAuth).
+     - **E-Mail + Passwort**: am schnellsten eingerichtet, Namen manuell.
+     - **Magic-Link**: Link per Mail, kein Passwort.
+   - To-do beim Start: Bastian legt kostenloses Supabase-Projekt an (ich führe durch) → gibt Projekt-URL + Anon-Key → ich erstelle Tabellen (`items`, `history`, Mitglieder) + RLS und baue das Frontend von localStorage auf Supabase um (localStorage bleibt als Cache/Fallback).
+3. 🤖 **Echter Rezept-Scan** – Foto → Zutaten + Mengen automatisch.
    Für „gratis" voraussichtlich **Google Gemini Gratis-API** (Vision) statt Anthropic-API
    (Anthropic-API kostet extra, ~1 ct/Scan; Claude Max deckt API **nicht** ab).
-3. **Icons** – ggf. hübsches Icon-Set für Standard-Produkte + Emoji-Fallback.
+4. 🎨 **Icons** (später) – ggf. hübsches Icon-Set für Standard-Produkte + Emoji-Fallback für alles andere (v. a. beliebige Scan-Zutaten).
 
 ---
 
