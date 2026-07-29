@@ -13,7 +13,10 @@
       "Bash(gh repo *)",
       "Bash(gh api *)",
       "Bash(osascript -e 'tell application \"Google Chrome\" *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(/usr/bin/python3 *)",
+      "Bash(pbcopy)",
+      "Bash(git -c user.name=bastianstute88 -c user.email=bastian.stute.88@gmail.com commit -m ' *)"
     ]
   }
 }

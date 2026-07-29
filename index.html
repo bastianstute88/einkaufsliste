@@ -44,10 +44,9 @@
   .avatars{display:flex}
   .av{width:34px;height:34px;border-radius:50%;border:2px solid #0a0d0a;
       display:grid;place-items:center;font-weight:700;font-size:13px;color:#fff;margin-left:-8px;
-      cursor:pointer;opacity:.5;transition:opacity .15s,box-shadow .15s}
-  .av.b{background:#d98736}
-  .av.s{background:#c65f7e}
-  .av.me{opacity:1;box-shadow:0 0 0 2px var(--green)}   /* das bin ich auf diesem Gerät */
+      overflow:hidden;opacity:.55;transition:opacity .15s,box-shadow .15s}
+  .av img{width:100%;height:100%;object-fit:cover;display:block}
+  .av.me{opacity:1;box-shadow:0 0 0 2px var(--green)}   /* das bin ich */
   .subtle{color:var(--muted);font-size:13px;margin-top:2px}
 
   /* Search / add bar */
@@ -110,13 +109,12 @@
   .hist-emo{font-size:22px;width:26px;text-align:center;flex:0 0 auto}
   .hist-main{flex:1;min-width:0}
   .hist-name{font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .hist-meta{font-size:12px;color:var(--muted);margin-top:1px}
+  .hist-meta{font-size:12px;color:var(--muted);margin-top:1px;display:flex;align-items:center;gap:5px}
   .hist-readd{font-size:12px;color:var(--green);flex:0 0 auto;font-weight:800}
   .hist-empty{color:var(--muted);text-align:center;padding:26px 10px}
   .who-badge{display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;
-    font-size:10px;font-weight:800;color:#fff;vertical-align:middle}
-  .who-badge.b{background:#d98736}
-  .who-badge.s{background:#c65f7e}
+    font-size:10px;font-weight:800;color:#fff;overflow:hidden;flex:0 0 auto}
+  .who-badge img{width:100%;height:100%;object-fit:cover;display:block}
 
   /* Bottom sheet */
   .sheet-bg{position:fixed;inset:0;background:rgba(15,25,20,.45);z-index:40;
@@ -156,10 +154,33 @@
   .band{border-top:1px dashed var(--line);margin:26px 4px 0;padding-top:4px}
   .list.vorrat .tile{border:1.5px dashed #33463c;background:#10140f;opacity:.92}
   .list.vorrat .tile .nm{color:var(--muted)}
+
+  /* Sync-Status-Punkt im Header */
+  .syncdot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:0 0 auto;
+    transition:background .3s}
+  .syncdot.on{background:var(--green);box-shadow:0 0 6px var(--green)}
+  .syncdot.off{background:#c65f5f}
+
+  /* Login / Zugriff-Overlay */
+  .gate{position:fixed;inset:0;z-index:100;background:radial-gradient(120% 90% at 50% 0%, #0e1a13 0%, #000 70%);
+    display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+    padding:32px 26px calc(env(safe-area-inset-bottom) + 32px)}
+  .gate.show{display:flex}
+  .gate .logo{font-size:56px;margin-bottom:10px}
+  .gate h1{font-size:26px;margin:0 0 6px;color:var(--green);letter-spacing:-.3px}
+  .gate p{color:var(--muted);font-size:15px;line-height:1.5;margin:0 0 30px;max-width:320px}
+  .gbtn{display:inline-flex;align-items:center;gap:12px;background:#fff;color:#1f1f1f;
+    border:none;border-radius:14px;padding:14px 22px;font-size:16px;font-weight:700;cursor:pointer;
+    box-shadow:0 4px 18px rgba(0,0,0,.35)}
+  .gbtn:active{transform:scale(.97)}
+  .gbtn svg{width:20px;height:20px;flex:0 0 auto}
+  .gate .small{color:var(--muted);font-size:13px;margin-top:22px}
+  .gate .textbtn{background:none;border:none;color:var(--green);font-weight:700;font-size:14px;cursor:pointer;margin-top:18px}
+  .gate.busy .gbtn{opacity:.5;pointer-events:none}
 </style>
 </head>
 <body>
-<div class="app">
+<div class="app" id="appRoot" style="display:none">
   <header>
     <div class="head-top">
       <div>
@@ -167,12 +188,10 @@
         <div class="subtle" id="subtle">Noch nichts drauf – leg los 🙂</div>
       </div>
       <div class="head-right">
+        <span class="syncdot" id="syncDot" title="Sync-Status"></span>
         <button class="hist-btn" id="scanBtn" aria-label="Rezept scannen">📷</button>
         <button class="hist-btn" id="histBtn" aria-label="Verlauf">🕘</button>
-        <div class="avatars">
-          <div class="av b" data-me="B" title="Das bin ich">B</div>
-          <div class="av s" data-me="S" title="Das bin ich">S</div>
-        </div>
+        <div class="avatars" id="avatars"></div>
       </div>
     </div>
     <div class="searchwrap">
@@ -209,6 +228,19 @@
 
   <!-- Catalog -->
   <section id="catalog"></section>
+</div>
+
+<!-- Login / Zugriff-Gate -->
+<div class="gate" id="gate">
+  <div class="logo">🛒</div>
+  <h1>Unsere Einkaufsliste</h1>
+  <p id="gateText">Melde dich mit Google an, um auf eure gemeinsame Liste zu kommen.</p>
+  <button class="gbtn" id="googleBtn">
+    <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+    Mit Google anmelden
+  </button>
+  <div class="small" id="gateSmall"></div>
+  <button class="textbtn" id="gateSignout" style="display:none">Mit anderem Konto anmelden</button>
 </div>
 
 <!-- Bottom sheet: quantity -->
@@ -257,9 +289,19 @@
     <button class="btn btn-ghost" id="histClear">Verlauf leeren</button>
     <button class="btn btn-primary" id="histClose">Schließen</button>
   </div>
+  <div style="text-align:center;margin-top:16px">
+    <button class="textbtn" id="signoutBtn" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer">Abmelden</button>
+  </div>
 </div>
 
-<script>
+<script type="module">
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+/* ---------- Supabase ---------- */
+const SUPA_URL = "https://ynkvoujaqqoslbzslbvb.supabase.co";
+const SUPA_KEY = "sb_publishable_d1Lx7UkGxOdll7MxgEu7WA_n5nzJU-7";
+const sb = createClient(SUPA_URL, SUPA_KEY);
+
 /* ---------- Katalog ---------- */
 const CATALOG = [
   ["Obst & Gemüse", [
@@ -318,20 +360,31 @@ const CATALOG = [
   ]]
 ];
 
-/* ---------- State ---------- */
+/* ---------- Konstanten ---------- */
 const UNITS = ["g","kg","ml","l"];                  // echte Mengeneinheiten
 const TAGS  = [["Tiefkühl","❄️"],["Vorrat","📦"],["Sonstiges","🛍️"],["Event","🎁"]]; // Marker statt Menge
 const SECTIONS = ["Vorrat","Sonstiges","Event"];    // eigene Bereiche, Menge ausgeblendet
-const KEY = "einkauf_prototyp_v2";
+
+/* ---------- State (Cache in localStorage für sofortiges Bild) ---------- */
+const KEY = "einkauf_supabase_v1";
 let state = JSON.parse(localStorage.getItem(KEY) || "null") || { items: [], history: [] };
+state.items = state.items || [];
 state.history = state.history || [];
-state.me = state.me || "B";     // wer bin ich auf DIESEM Gerät ("B" oder "S")
-// items: [ {id, name, emo, qty, unit} ]  – gleiches Produkt darf mehrfach vorkommen
-// history: [ {name, emo, action:'add'|'buy', who, t} ] – neuester zuerst
-let seq = state.items.reduce((m,i)=>Math.max(m, i.id||0), 0);
-function newId(){ return ++seq; }
+let me = null;              // {id, email, name, avatar}
+let profiles = {};          // user_id -> {user_id, name, avatar_url}
+let historyOpen = false;
+
+// items:   [ {id(uuid), name, emo, qty, unit} ]
+// history: [ {id(uuid), name, emo, action:'add'|'buy', who, who_name, who_avatar, t} ]
+
+function uuid(){
+  if(crypto && crypto.randomUUID) return crypto.randomUUID();
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g,c=>{
+    const r=Math.random()*16|0, v=c==="x"?r:(r&0x3|0x8); return v.toString(16);
+  });
+}
 function byId(id){ return state.items.find(i=>i.id===id); }
-function save(){ localStorage.setItem(KEY, JSON.stringify(state)); }
+function saveCache(){ localStorage.setItem(KEY, JSON.stringify({items:state.items, history:state.history})); }
 
 /* ---------- Helpers ---------- */
 const $ = s => document.querySelector(s);
@@ -346,40 +399,40 @@ function qtyLabel(it){
   if(!it.unit) return String(it.qty);                        // einfache Zahl, keine Einheit
   return it.qty+" "+it.unit;                                 // g / kg / ml / l
 }
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function initials(name){ return (name||"?").trim().charAt(0).toUpperCase() || "?"; }
+function colorFor(str){
+  let h=0; for(const c of (str||"")) h=(h*31+c.charCodeAt(0))>>>0;
+  const hue=h%360; return `hsl(${hue} 45% 45%)`;
+}
 
 /* ---------- Render ---------- */
 function render(){
-  const onList    = state.items;      // alles bleibt drauf, bis gekauft/entfernt
+  const onList    = state.items;
   const active    = onList.filter(i=>!SECTIONS.includes(i.unit));
   const events    = onList.filter(i=>i.unit==="Event");
   const sonstiges = onList.filter(i=>i.unit==="Sonstiges");
   const vorrat    = onList.filter(i=>i.unit==="Vorrat");
   const toBuy = active.length + events.length + sonstiges.length;   // Vorrat zählt bewusst NICHT mit
 
-  // header
   $("#subtle").textContent = toBuy ? toBuy+" Artikel zu kaufen" : "Noch nichts drauf – leg los 🙂";
 
-  // „Auf der Liste" – Zähler enthält auch Event + Sonstiges
   $("#activeGrid").innerHTML = active.map(tileHTML).join("");
   $("#activeCount").textContent = toBuy;
   $("#activeEmpty").style.display = toBuy? "none":"block";
 
-  // Event
   $("#eventSection").style.display = events.length? "block":"none";
   $("#eventCount").textContent = events.length;
   $("#eventGrid").innerHTML = events.map(tileHTML).join("");
 
-  // Sonstiges
   $("#sonstSection").style.display = sonstiges.length? "block":"none";
   $("#sonstCount").textContent = sonstiges.length;
   $("#sonstGrid").innerHTML = sonstiges.map(tileHTML).join("");
 
-  // Vorrat
   $("#vorratSection").style.display = vorrat.length? "block":"none";
   $("#vorratCount").textContent = vorrat.length;
   $("#vorratGrid").innerHTML = vorrat.map(tileHTML).join("");
 
-  // catalog – badge zeigt, wie oft das Produkt schon auf der Liste steht
   $("#catalog").innerHTML = CATALOG.map(([cat,items])=>{
     const q = ($("#search").value||"").toLowerCase().trim();
     const list = items.filter(([,n])=> !q || n.toLowerCase().includes(q));
@@ -387,18 +440,17 @@ function render(){
     return `<div class="cat-h">${items[0][0]} ${cat}</div>
       <div class="grid">${list.map(([emo,n])=>{
         const cnt = state.items.filter(i=>i.name===n).length;
-        return `<div class="tile" data-cat="${n}">
+        return `<div class="tile" data-cat="${esc(n)}">
           ${cnt? `<span class="qty">${cnt}×</span>`:""}
-          <span class="emo">${emo}</span><span class="nm">${n}</span></div>`;
+          <span class="emo">${emo}</span><span class="nm">${esc(n)}</span></div>`;
       }).join("")}</div>`;
   }).join("");
 
   fitAll();
-  save();
+  saveCache();
 }
-// Schrift pro Kachel nur so weit verkleinern, bis der Name passt (nicht kleiner als lesbar)
 function fitText(el){
-  el.style.fontSize="";                         // zurück auf Basisgröße
+  el.style.fontSize="";
   let size = parseFloat(getComputedStyle(el).fontSize);
   const MIN = 9;
   let guard = 0;
@@ -414,57 +466,87 @@ function tileHTML(it){
   return `<div class="tile${armed?' armed':''}" data-id="${it.id}">
     ${q? `<span class="qty">${q}</span>`:""}
     ${armed? `<span class="armed-check">✓</span>`:""}
-    <span class="emo">${it.emo}</span><span class="nm">${it.name}</span></div>`;
+    <span class="emo">${it.emo}</span><span class="nm">${esc(it.name)}</span></div>`;
 }
 
-/* ---------- Actions ---------- */
-function logHist(it, action){
-  state.history.unshift({ name:it.name, emo:it.emo, action, who:state.me, t:Date.now() });
+/* ---------- Avatare im Header ---------- */
+function avatarHTML(p, cls){
+  const meCls = (me && p.user_id===me.id) ? " me" : "";
+  const inner = p.avatar_url
+    ? `<img src="${esc(p.avatar_url)}" alt="" referrerpolicy="no-referrer">`
+    : esc(initials(p.name));
+  const bg = p.avatar_url ? "" : `background:${colorFor(p.user_id||p.name)}`;
+  return `<div class="${cls}${meCls}" title="${esc(p.name||"")}" style="${bg}">${inner}</div>`;
+}
+function renderAvatars(){
+  const list = Object.values(profiles);
+  // "ich" immer zuerst und garantiert dabei
+  if(me && !profiles[me.id]) list.unshift({user_id:me.id, name:me.name, avatar_url:me.avatar});
+  list.sort((a,b)=> (a.user_id===me?.id ? -1 : b.user_id===me?.id ? 1 : 0));
+  $("#avatars").innerHTML = list.map(p=>avatarHTML(p,"av")).join("");
+}
+
+/* ---------- Aktionen (optimistisch + Supabase) ---------- */
+function logHistLocal(it, action){
+  const h = { id:uuid(), name:it.name, emo:it.emo, action,
+              who: me?.id||null, who_name: me?.name||null, who_avatar: me?.avatar||null, t:Date.now() };
+  state.history.unshift(h);
   if(state.history.length>200) state.history.length=200;
+  return h;
 }
-function addItem(name, emo, qty=null, unit=null){
-  const it={ id:newId(), name, emo: emo||emoFor(name), qty, unit };
+async function addItem(name, emo, qty=null, unit=null){
+  const it = { id:uuid(), name, emo: emo||emoFor(name), qty, unit };
   state.items.push(it);
-  logHist(it,"add");
-  render();
+  const h = logHistLocal(it, "add");
+  render(); if(historyOpen) renderHistory();
+  try{
+    await sb.from("items").insert({ id:it.id, name:it.name, emo:it.emo, qty:it.qty, unit:it.unit, created_by: me?.id||null });
+    await sb.from("history").insert({ id:h.id, name:h.name, emo:h.emo, action:"add", who:h.who, who_name:h.who_name, who_avatar:h.who_avatar });
+  }catch(e){ flagSync(false); }
 }
-function buyItem(id){ const it=byId(id); if(!it) return; logHist(it,"buy"); removeItem(id); }  // abhaken = gekauft
-function removeItem(id){ state.items = state.items.filter(i=>i.id!==id); render(); }
+async function buyItem(id){
+  const it = byId(id); if(!it) return;
+  const h = logHistLocal(it, "buy");
+  state.items = state.items.filter(i=>i.id!==id);
+  render(); if(historyOpen) renderHistory();
+  try{
+    await sb.from("history").insert({ id:h.id, name:h.name, emo:h.emo, action:"buy", who:h.who, who_name:h.who_name, who_avatar:h.who_avatar });
+    await sb.from("items").delete().eq("id", id);
+  }catch(e){ flagSync(false); }
+}
 
-/* Tap handling – Katalog: Menü zum Draufsetzen.
-   Liste: 1. Druck graut den Artikel aus, 2. Druck (auf denselben) hakt ihn ab – kein Zeitdruck. */
+/* ---------- Tap handling ---------- */
 let armedId = null;
 document.addEventListener("click", e=>{
   const catTile = e.target.closest("[data-cat]");
   const itemTile = e.target.closest("[data-id]");
   if(catTile){
     armedId=null;
-    openAdd(catTile.getAttribute("data-cat"));    // Menü öffnen -> mit oder ohne Menge übernehmen
+    openAdd(catTile.getAttribute("data-cat"));
     return;
   }
   if(itemTile){
-    const id = +itemTile.getAttribute("data-id");
+    const id = itemTile.getAttribute("data-id");
     if(!byId(id)) return;
-    if(armedId===id){ armedId=null; buyItem(id); } // 2. Druck -> gekauft (weg)
-    else { armedId=id; render(); }                 // 1. Druck -> ausgegraut
+    if(armedId===id){ armedId=null; buyItem(id); }
+    else { armedId=id; render(); }
     return;
   }
-  if(armedId!=null){ armedId=null; render(); }     // woanders getippt -> Auswahl wieder aufheben
+  if(armedId!=null){ armedId=null; render(); }
 });
 
-/* ---------- Mengen-Menü (nur beim Draufsetzen) ---------- */
+/* ---------- Mengen-Menü ---------- */
 let pending=null, tmp={qty:null,unit:null};
-
 function openAdd(name, emo){
   pending={ name, emo: emo||emoFor(name) };
-  tmp={ qty:null, unit:null };                    // startet ohne Menge
+  tmp={ qty:null, unit:null };
   $("#qtyEmo").textContent=pending.emo;
   $("#qtyName").textContent=name;
   drawSheet(); openSheet("#qtySheet");
 }
 function stepSize(){
   if(tmp.unit==="g"||tmp.unit==="ml") return tmp.qty>=100?50:tmp.qty>=10?10:1;
-  return 1;                                         // einfache Zahl, kg, l, Tiefkühl
+  return 1;
 }
 function unitChip(u,label){ return `<div class="unit ${tmp.unit===u?'active':''}" data-unit="${u}">${label}</div>`; }
 function drawSheet(){
@@ -480,22 +562,26 @@ $("#plus").onclick =()=>{ tmp.qty = tmp.qty==null ? 1 : tmp.qty+stepSize(); draw
 $("#minus").onclick=()=>{
   if(tmp.qty==null) return;
   const n = tmp.qty - stepSize();
-  tmp.qty = n<1 ? null : n;                          // unter 1 -> wieder "ohne Menge"
+  tmp.qty = n<1 ? null : n;
   drawSheet();
 };
 $("#units").onclick=e=>{
   const el=e.target.closest("[data-unit]"); if(!el) return;
   const u=el.getAttribute("data-unit");
-  if(tmp.unit===u){ tmp.unit=null; }                // nochmal tippen = abwählen (einfache Zahl)
-  else { tmp.unit=u; if(UNITS.includes(u) && tmp.qty==null) tmp.qty=1; }  // nur echte Mengen setzen 1
+  if(tmp.unit===u){ tmp.unit=null; }
+  else { tmp.unit=u; if(UNITS.includes(u) && tmp.qty==null) tmp.qty=1; }
   drawSheet();
 };
 $("#saveBtn").onclick=()=>{ if(pending) addItem(pending.name, pending.emo, tmp.qty, tmp.unit); closeSheet(); };
-$("#removeBtn").onclick=()=>{ closeSheet(); };   // Abbrechen
+$("#removeBtn").onclick=()=>{ closeSheet(); };
 
 /* ---------- Sheets ---------- */
 function openSheet(sel){ $("#sheetBg").classList.add("open"); $(sel).classList.add("open"); }
-function closeSheet(){ $("#sheetBg").classList.remove("open"); $("#qtySheet").classList.remove("open"); $("#scanSheet").classList.remove("open"); $("#histSheet").classList.remove("open"); }
+function closeSheet(){
+  $("#sheetBg").classList.remove("open");
+  $("#qtySheet").classList.remove("open"); $("#scanSheet").classList.remove("open"); $("#histSheet").classList.remove("open");
+  historyOpen=false;
+}
 $("#sheetBg").onclick=closeSheet;
 
 /* ---------- Search / custom add ---------- */
@@ -511,7 +597,7 @@ function commitCustom(){
   if(!v) return;
   const name=v.charAt(0).toUpperCase()+v.slice(1);
   searchEl.value=""; $("#addHint").classList.remove("show"); render();
-  openAdd(name, "🛒");                    // eigenes Produkt auch übers Menü
+  openAdd(name, "🛒");
 }
 $("#addHint").onclick=commitCustom;
 searchEl.addEventListener("keydown",e=>{ if(e.key==="Enter") commitCustom(); });
@@ -538,36 +624,143 @@ function relTime(t){
   if(day(d)===day(y))   return "gestern "+hm;
   return pad(d.getDate())+"."+pad(d.getMonth()+1)+". "+hm;
 }
+function whoBadge(e){
+  if(e.who_avatar) return `<span class="who-badge"><img src="${esc(e.who_avatar)}" alt="" referrerpolicy="no-referrer"></span>`;
+  if(e.who_name)   return `<span class="who-badge" style="background:${colorFor(e.who||e.who_name)}">${esc(initials(e.who_name))}</span>`;
+  return "";
+}
 function renderHistory(){
   const h=state.history;
   $("#histList").innerHTML = h.length ? h.map((e,i)=>{
-    const who = e.who ? `<span class="who-badge ${e.who.toLowerCase()}">${e.who}</span> · ` : "";
+    const badge = whoBadge(e);
     return `
     <div class="hist-row" data-hist="${i}">
       <span class="hist-emo">${e.emo}</span>
       <div class="hist-main">
-        <div class="hist-name">${e.name}</div>
-        <div class="hist-meta">${e.action==="buy"?"🛒 gekauft":"➕ draufgesetzt"} · ${who}${relTime(e.t)}</div>
+        <div class="hist-name">${esc(e.name)}</div>
+        <div class="hist-meta">${e.action==="buy"?"🛒 gekauft":"➕ draufgesetzt"} · ${badge}<span>${relTime(e.t)}</span></div>
       </div>
       <span class="hist-readd">+ dazu</span>
     </div>`;
   }).join("") : `<div class="hist-empty">Noch nichts passiert.</div>`;
 }
-$("#histBtn").onclick=()=>{ renderHistory(); openSheet("#histSheet"); };
+$("#histBtn").onclick=()=>{ historyOpen=true; renderHistory(); openSheet("#histSheet"); };
 $("#histClose").onclick=closeSheet;
-$("#histClear").onclick=()=>{ state.history=[]; save(); renderHistory(); };
+$("#histClear").onclick=async ()=>{
+  state.history=[]; renderHistory(); saveCache();
+  try{ await sb.from("history").delete().neq("id","00000000-0000-0000-0000-000000000000"); }catch(e){ flagSync(false); }
+};
 $("#histList").onclick=e=>{
   const row=e.target.closest("[data-hist]"); if(!row) return;
   const ev=state.history[+row.getAttribute("data-hist")];
-  if(ev){ addItem(ev.name, ev.emo); closeSheet(); }   // wieder draufsetzen
+  if(ev){ addItem(ev.name, ev.emo); closeSheet(); }
 };
 
-/* ---------- Wer bin ich (pro Gerät) ---------- */
-function refreshMe(){ document.querySelectorAll(".av").forEach(a=>a.classList.toggle("me", a.getAttribute("data-me")===state.me)); }
-document.querySelectorAll(".av").forEach(a=>a.onclick=()=>{ state.me=a.getAttribute("data-me"); save(); refreshMe(); });
-refreshMe();
+/* ---------- Auth-Gate ---------- */
+function showGate(text, allowSignout){
+  $("#appRoot").style.display="none";
+  $("#gateText").textContent = text || "Melde dich mit Google an, um auf eure gemeinsame Liste zu kommen.";
+  $("#gateSignout").style.display = allowSignout ? "inline-block" : "none";
+  $("#gate").classList.add("show");
+}
+function hideGate(){ $("#gate").classList.remove("show"); $("#appRoot").style.display="block"; }
 
-render();
+$("#googleBtn").onclick=async ()=>{
+  $("#gate").classList.add("busy");
+  const redirectTo = location.origin + location.pathname;
+  const { error } = await sb.auth.signInWithOAuth({ provider:"google", options:{ redirectTo } });
+  if(error){ $("#gate").classList.remove("busy"); $("#gateSmall").textContent = "Fehler: "+error.message; }
+};
+async function doSignOut(){ await sb.auth.signOut(); location.reload(); }
+$("#gateSignout").onclick=doSignOut;
+$("#signoutBtn").onclick=doSignOut;
+
+/* ---------- Sync-Status ---------- */
+function flagSync(on){
+  const d=$("#syncDot");
+  d.classList.toggle("on", on===true);
+  d.classList.toggle("off", on===false);
+}
+
+/* ---------- Daten laden + Realtime ---------- */
+function rowToItem(r){ return { id:r.id, name:r.name, emo:r.emo||emoFor(r.name), qty:(r.qty==null?null:Number(r.qty)), unit:r.unit||null }; }
+function rowToHist(r){ return { id:r.id, name:r.name, emo:r.emo, action:r.action, who:r.who, who_name:r.who_name, who_avatar:r.who_avatar, t:new Date(r.created_at).getTime() }; }
+
+async function initData(){
+  const [{ data:items }, { data:hist }, { data:profs }] = await Promise.all([
+    sb.from("items").select("*").order("created_at",{ascending:true}),
+    sb.from("history").select("*").order("created_at",{ascending:false}).limit(200),
+    sb.from("profiles").select("*")
+  ]);
+  state.items   = (items||[]).map(rowToItem);
+  state.history = (hist||[]).map(rowToHist);
+  profiles = {}; (profs||[]).forEach(p=>{ profiles[p.user_id]=p; });
+  saveCache();
+  renderAvatars();
+  render();
+}
+function subscribeRealtime(){
+  sb.channel("items-ch")
+    .on("postgres_changes",{event:"INSERT",schema:"public",table:"items"}, p=>{
+        if(byId(p.new.id)) return; state.items.push(rowToItem(p.new)); render();
+    })
+    .on("postgres_changes",{event:"DELETE",schema:"public",table:"items"}, p=>{
+        state.items = state.items.filter(i=>i.id!==p.old.id); render();
+    })
+    .subscribe(st=>{ if(st==="SUBSCRIBED") flagSync(true); });
+  sb.channel("hist-ch")
+    .on("postgres_changes",{event:"INSERT",schema:"public",table:"history"}, p=>{
+        if(state.history.some(h=>h.id===p.new.id)) return;
+        state.history.unshift(rowToHist(p.new));
+        if(state.history.length>200) state.history.length=200;
+        if(historyOpen) renderHistory();
+    })
+    .on("postgres_changes",{event:"DELETE",schema:"public",table:"history"}, p=>{
+        state.history = state.history.filter(h=>h.id!==p.old.id);
+        if(historyOpen) renderHistory();
+    })
+    .subscribe();
+}
+
+/* ---------- Boot ---------- */
+async function boot(){
+  // sofort: Cache zeigen, falls schon eingeloggt (wird gleich geprüft)
+  const { data:{ session } } = await sb.auth.getSession();
+  if(!session){ showGate(); return; }
+
+  const u = session.user;
+  me = {
+    id: u.id,
+    email: u.email,
+    name: u.user_metadata?.full_name || u.user_metadata?.name || (u.email||"").split("@")[0],
+    avatar: u.user_metadata?.avatar_url || u.user_metadata?.picture || null
+  };
+
+  // Mitglied?
+  let isMember=false;
+  try{ const { data } = await sb.rpc("is_member"); isMember = data===true; }catch(e){}
+  if(!isMember){
+    showGate(`Dieses Konto (${me.email}) hat keinen Zugriff auf die Liste. Melde dich mit dem hinterlegten Google-Konto an.`, true);
+    return;
+  }
+
+  // Profil hochladen (Name + Foto sichtbar für den Partner)
+  try{
+    await sb.from("profiles").upsert({ user_id:me.id, email:me.email, name:me.name, avatar_url:me.avatar, updated_at:new Date().toISOString() });
+  }catch(e){}
+
+  hideGate();
+  renderAvatars();
+  render();                 // erst Cache/leeres Bild
+  await initData();         // dann echte Daten
+  subscribeRealtime();
+}
+
+sb.auth.onAuthStateChange((event)=>{
+  if(event==="SIGNED_IN" && !me){ boot(); }
+});
+
+boot();
 </script>
 </body>
 </html>

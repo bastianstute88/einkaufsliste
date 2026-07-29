@@ -2,7 +2,7 @@
 
 Eine eigene Einkaufslisten-App (Bring-Ersatz) für Bastian und seine Frau.
 
-**Stand (zuletzt aktualisiert):** Optik + Interaktion abgenommen, Katalog auf ~130 Produkte (11 Kategorien) erweitert. Läuft noch rein lokal (localStorage), wird für Feedback geteilt. **Als Nächstes dran: Datenbank + Login (Schritt 2 des Fahrplans).**
+**Stand (zuletzt aktualisiert):** **Schritt 2 fertig & getestet** – Google-Login + gemeinsame Live-Liste über **Supabase** laufen. Beide (Bastian + Simone) melden sich mit Google an, sehen dieselbe Liste in Echtzeit (Draufsetzen/Abhaken/Verlauf synchronisieren live), Zugriff nur für die 2 hinterlegten Konten (RLS). localStorage bleibt als Cache. **Als Nächstes dran: echter Rezept-Scan (Schritt 3).**
 
 ---
 
@@ -17,9 +17,15 @@ Eine eigene Einkaufslisten-App (Bring-Ersatz) für Bastian und seine Frau.
 
 ## 2. Technik & Architektur
 
-- **Eine einzige Datei**: `index.html` – komplett selbst-enthalten (HTML + CSS + JS inline, keine Abhängigkeiten, kein Build).
+- **Eine einzige Datei**: `index.html` – HTML + CSS + JS inline, kein Build. Einzige Abhängigkeit: `@supabase/supabase-js` wird zur Laufzeit per ESM-Import vom CDN (`esm.sh`) geladen (fürs Backend nötig).
 - **PWA-tauglich**: fürs Handy gebaut, „Zum Home-Bildschirm hinzufügen" → Vollbild-App-Gefühl.
-- **Speicherung**: `localStorage` (Key `einkauf_prototyp_v2`). Läuft rein lokal im Browser – **noch kein Server, noch kein Sync**. Jedes Gerät hat aktuell seine eigene Liste.
+- **Backend: Supabase** (Free-Tarif) – Postgres + Auth + Realtime.
+  - Projekt-Ref: `ynkvoujaqqoslbzslbvb`, URL `https://ynkvoujaqqoslbzslbvb.supabase.co`.
+  - Frontend redet per Client-SDK mit Supabase; der **Publishable Key** (`sb_publishable_…`) steht im `index.html` (public-safe, durch RLS abgesichert).
+  - **Login: Google OAuth** (Google-Cloud-Projekt `einkaufsliste-503918`, Freigabe-Bildschirm „In Produktion", nur Scopes email/profile → keine Warnung, kein 7-Tage-Ablauf).
+  - **Zugriffsschutz (RLS)**: Nur die in Tabelle `members` hinterlegten E-Mails (Bastian + Simone) dürfen lesen/schreiben. Fremde können sich zwar mit Google anmelden, sehen aber nichts.
+  - **Live-Sync** über Supabase Realtime auf `items` + `history`.
+- **Cache/Offline**: `localStorage` (Key `einkauf_supabase_v1`) hält die zuletzt gesehene Liste für sofortiges Bild beim Start; echte Quelle ist Supabase.
 - **Hosting**: GitHub Pages (öffentlich, weil kostenloses Pages nur bei public geht).
   - Repo: `bastianstute88/einkaufsliste`
   - Live-Link: **https://bastianstute88.github.io/einkaufsliste/**
@@ -30,15 +36,28 @@ Eine eigene Einkaufslisten-App (Bring-Ersatz) für Bastian und seine Frau.
 
 ```js
 state = {
-  items:   [ {id, name, emo, qty, unit} ],   // was aktuell auf der Liste ist
-  history: [ {name, emo, action, t} ]        // Verlauf, neuester zuerst
+  items:   [ {id, name, emo, qty, unit} ],                        // aktuell auf der Liste
+  history: [ {id, name, emo, action, who, who_name, who_avatar, t} ] // Verlauf, neuester zuerst
 }
 ```
 
+- **`id` ist jetzt eine UUID** (`crypto.randomUUID()`) – dieselbe ID lokal wie in Supabase, damit optimistisches Einfügen und das Realtime-Echo sich decken (kein Doppel-Eintrag).
 - `qty`: Zahl **oder `null`** (= „ohne Menge", kein Badge).
 - `unit`: `null` (einfache Zahl) · `"g"|"kg"|"ml"|"l"` (echte Mengen) · `"Tiefkühl"` (❄️-Marker, Menge optional) · `"Vorrat"|"Sonstiges"|"Event"` (Bereichs-Marker, **ohne** Menge).
 - Gleiches Produkt darf **mehrfach** vorkommen (Brot 1 Stück + Brot 1 kg = 2 Einträge). Deshalb `id` statt Name als Schlüssel.
 - `action`: `"add"` (draufgesetzt) oder `"buy"` (abgehakt/gekauft). `t` = `Date.now()`.
+- `who`/`who_name`/`who_avatar`: wer die Aktion gemacht hat (User-ID + Name + Google-Foto), beim Schreiben mitgespeichert.
+
+**Supabase-Tabellen** (Schema-Datei lag im Scratchpad; hier zur Referenz):
+- `members(email, display_name)` – Allowlist, **nicht** vom Client lesbar; nur im Dashboard pflegen. Enthält Bastian + Simone.
+- `is_member()` – SECURITY-DEFINER-Funktion, prüft ob `auth.jwt()->>'email'` in `members` steht. Basis aller RLS-Policies.
+- `profiles(user_id, email, name, avatar_url)` – für Mitglieder lesbar; jeder pflegt beim Login sein eigenes (Name+Foto, damit man den Partner sieht).
+- `items(id, name, emo, qty, unit, created_at, created_by)` – die geteilte Liste. RLS: alles nur für Mitglieder.
+- `history(id, name, emo, action, who, who_name, who_avatar, created_at)` – Verlauf. RLS: alles nur für Mitglieder.
+- Realtime-Publication auf `items` + `history` aktiviert.
+
+**Ein neues Mitglied hinzufügen:** im Supabase-SQL-Editor
+`insert into public.members(email, display_name) values ('neue@gmail.com','Name');`
 
 Zentrale Konstanten:
 - `CATALOG` – Kategorien + Emoji + Name der Standard-Produkte.
@@ -71,10 +90,12 @@ Zentrale Konstanten:
 - Eintrag antippen → Produkt **wieder draufsetzen** (praktisch für oft Gekauftes).
 - „Verlauf leeren" möglich.
 
-**Wer bin ich (`state.me`, pro Gerät)**
-- Oben die **Avatare B/S** antippen = „das bin ich auf diesem Gerät" (grüner Ring markiert die Auswahl, in `localStorage`).
-- Jeder Verlaufs-Eintrag wird mit dieser Person getaggt (`who`).
-- **Provisorisch**, bis der echte Sync + Login steht: aktuell tippt jeder auf seinem Gerät selbst seinen Avatar an. Namen sind noch Platzhalter (B = Bastian, S = seine Frau).
+**Wer bin ich (jetzt über Login, nicht mehr pro Gerät)**
+- Der eingeloggte Google-Nutzer *ist* „ich" – kein Antippen mehr nötig. Oben rechts erscheinen die **Avatare** (echte Google-Profilfotos) aller, die sich schon mal angemeldet haben; der eigene hat den grünen Ring.
+- Jeder Verlaufs-Eintrag wird automatisch mit der Person getaggt (Name + Foto).
+- **Login-Screen**: Beim ersten Start (oder nach „Abmelden") kommt ein Vollbild-Screen „Mit Google anmelden". Wer nicht in `members` steht, sieht „kein Zugriff".
+- **Sync-Punkt** (kleiner Punkt oben im Header): grün = Live-Sync verbunden.
+- **Abmelden**: unten im Verlauf-Sheet.
 
 **Rezept-Scan (📷 oben, neben 🕘)** – aktuell nur **Vorschau**. „Beispiel übernehmen" legt ein paar Zutaten an, um das Zielbild zu zeigen.
 
@@ -104,8 +125,8 @@ git -c user.name="bastianstute88" -c user.email="bastian.stute.88@gmail.com" \
 git push origin main
 ```
 - Der Live-Link bleibt gleich; GitHub Pages baut nach dem Push ~1 Min neu.
-- Lokal ansehen: `index.html` im Browser öffnen. Tab neu laden per AppleScript
-  (`osascript` → Chrome-Tab mit „Einkaufslisten" reload).
+- **Lokal testen** geht jetzt **nicht** mehr per Doppelklick (`file://`), weil Google-Login eine echte http-Adresse braucht. Stattdessen im Projektordner `python3 -m http.server 8000` starten und `http://localhost:8000` öffnen. `http://localhost:8000/**` ist in Supabase (Auth → URL Configuration → Redirect URLs) als erlaubte Adresse hinterlegt.
+- Erlaubte Redirect-URLs in Supabase: Live-Pages-URL + `http://localhost:8000`. Neue Test-Ports müssten dort ergänzt werden.
 
 ---
 
@@ -114,16 +135,11 @@ git push origin main
 Reihenfolge mit Bastian abgestimmt: von „braucht nichts" → „braucht Konto" → „braucht KI".
 
 1. ✅ **Mehr Produkte** – erledigt (Katalog auf ~130 Produkte / 11 Kategorien erweitert).
-2. ⏭️ **Datenbank + Login** (NÄCHSTER SCHRITT, ein Schritt, nicht zwei) – **Supabase** (kostenloser Tarif).
-   - Gibt: gemeinsame **Live-Liste** (Sync zwischen beiden Geräten) + **Login** + echtes „wer hat was gemacht".
-   - App bleibt **statisch auf GitHub Pages** und redet per Client-SDK mit Supabase (Anon-Key ist public-safe).
-   - **Zugriffsschutz per Row-Level-Security**: „anmelden" kann jeder, aber auf DIE Liste kommen nur die **hinterlegten 2 Konten** (Bastians + Frau-E-Mail als Mitglieder). Fremde sehen/ändern nichts.
-   - **Login-Methode noch offen** – zur Auswahl gestellt, noch nicht entschieden:
-     - **Google-Login** (beide haben Gmail): 1 Tipp, liefert **echte Namen + Profilfotos automatisch** → macht das „wer"-Feature richtig hübsch. Etwas mehr Einrichtung (OAuth).
-     - **E-Mail + Passwort**: am schnellsten eingerichtet, Namen manuell.
-     - **Magic-Link**: Link per Mail, kein Passwort.
-   - To-do beim Start: Bastian legt kostenloses Supabase-Projekt an (ich führe durch) → gibt Projekt-URL + Anon-Key → ich erstelle Tabellen (`items`, `history`, Mitglieder) + RLS und baue das Frontend von localStorage auf Supabase um (localStorage bleibt als Cache/Fallback).
-3. 🤖 **Echter Rezept-Scan** – Foto → Zutaten + Mengen automatisch.
+2. ✅ **Datenbank + Login** – **erledigt & getestet** (Supabase + Google-Login).
+   - Gemeinsame **Live-Liste** (Sync in Echtzeit), **Google-Login** mit echten Namen + Fotos, Zugriff nur für Bastian + Simone (RLS).
+   - Getestet: Login end-to-end, Draufsetzen/Abhaken/Verlauf synchronisieren zwischen zwei Tabs live; Daten liegen wirklich in Supabase.
+   - **Nächstes Mitglied hinzufügen** geht per einer SQL-Zeile (siehe Abschnitt 3).
+3. ⏭️ **Echter Rezept-Scan** (NÄCHSTER SCHRITT) – Foto → Zutaten + Mengen automatisch.
    Für „gratis" voraussichtlich **Google Gemini Gratis-API** (Vision) statt Anthropic-API
    (Anthropic-API kostet extra, ~1 ct/Scan; Claude Max deckt API **nicht** ab).
 4. 🎨 **Icons** (später) – ggf. hübsches Icon-Set für Standard-Produkte + Emoji-Fallback für alles andere (v. a. beliebige Scan-Zutaten).
@@ -138,6 +154,9 @@ Reihenfolge mit Bastian abgestimmt: von „braucht nichts" → „braucht Konto"
 | Hauptdatei | `index.html` (alles drin) |
 | GitHub | `bastianstute88/einkaufsliste` (public) |
 | Live | https://bastianstute88.github.io/einkaufsliste/ |
-| Speicher | `localStorage`, Key `einkauf_prototyp_v2` |
-| Sync/Backend | noch keins |
+| Cache | `localStorage`, Key `einkauf_supabase_v1` (nur Cache) |
+| Backend | Supabase `ynkvoujaqqoslbzslbvb` (Postgres + Auth + Realtime) |
+| Login | Google OAuth (Cloud-Projekt `einkaufsliste-503918`, „In Produktion") |
+| Mitglieder | Bastian + Simone (Tabelle `members`, RLS) |
+| Sync | Live (Supabase Realtime auf `items` + `history`) |
 | Scan | noch Vorschau |
