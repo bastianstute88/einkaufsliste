@@ -583,9 +583,14 @@ function catTileHTML(emo, n){
     <span class="emo">${emo}</span><span class="nm">${esc(n)}</span></div>`;
 }
 function statsList(){ return Object.values(statsMap); }
+const OFT_TAGE = 14;   // "Oft gekauft" zeigt nur, was in den letzten X Tagen gekauft wurde (Zähler bleibt erhalten)
+const OFT_MIN  = 2;    // ... und erst ab so vielen Käufen (kein Einmal-Rauschen)
 function topOften(n){
-  return statsList().filter(s=>(s.buys||0)>0)
-    .sort((a,b)=> (b.buys-a.buys) || (new Date(b.last_buy||0)-new Date(a.last_buy||0))).slice(0,n);
+  const cutoff = Date.now() - OFT_TAGE*24*60*60*1000;
+  return statsList()
+    .filter(s=> (s.buys||0)>=OFT_MIN && s.last_buy && new Date(s.last_buy).getTime() >= cutoff)
+    .sort((a,b)=> (b.buys-a.buys) || (new Date(b.last_buy||0)-new Date(a.last_buy||0)))
+    .slice(0,n);
 }
 function bumpStatLocal(it){
   const s = statsMap[it.name] || {name:it.name, emo:it.emo||emoFor(it.name), buys:0, last_buy:null};
