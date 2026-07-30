@@ -2,7 +2,11 @@
 
 Eine eigene Einkaufslisten-App (Bring-Ersatz) für Bastian und seine Frau.
 
-**Stand (zuletzt aktualisiert 30.07.2026):** **Schritt 3 fertig & live** – **Rezept-Import ohne Foto**. Ein Rezept-Link (Chefkoch & Co.) wird eingefügt oder geteilt, die Zutaten werden **exakt** ausgelesen (aus dem `schema.org/Recipe`-Datenblock der Seite), auf die gewünschte Portionszahl umgerechnet und auf die Liste gesetzt. Kein Bild-Scan, keine KI, keine Kosten. Davor: Schritt 2 (Supabase-Backend + Google-Login + Live-Sync). Neu außerdem: **„Liste leeren" per 5-Sekunden-Halten**.
+**Stand (zuletzt aktualisiert 30.07.2026):** **Schritt 3 + 4 fertig & live.**
+- **Schritt 3 – Rezept-Import ohne Foto:** Ein Rezept-Link (Chefkoch & Co.) wird eingefügt oder geteilt, die Zutaten werden **exakt** ausgelesen (aus dem `schema.org/Recipe`-Datenblock der Seite), auf die gewünschte Portionszahl umgerechnet und auf die Liste gesetzt. Kein Bild-Scan, keine KI, keine Kosten.
+- **Schritt 4 – Aufgeräumter Katalog + smarte Vorschläge:** Kategorien sind **einklappbar** (Standard: zu). Ganz oben ein Bereich **⭐ Oft gekauft** aus einer dauerhaften Häufigkeits-Statistik (Supabase-Tabelle `stats`). *(„Zuletzt gekauft" wurde bewusst weggelassen – das deckt der Verlauf 🕘 schon ab.)*
+- Außerdem: **„Liste leeren" per 5-Sekunden-Halten**.
+- Davor: Schritt 2 (Supabase-Backend + Google-Login + Live-Sync).
 
 ---
 
@@ -95,6 +99,12 @@ Zentrale Konstanten: `CATALOG` (Kategorien+Emoji+Name), `UNITS = ["g","kg","ml",
 - **Sicherheitsnetz**: die geleerten Artikel landen im **Verlauf** (als „gekauft") und sind von dort einzeln wieder draufsetzbar.
 - iPhone-tauglich über Pointer-Events; Text-Callout/Selektion beim Halten unterdrückt.
 
+**Katalog (unten) – einklappbar + smarte Vorschläge – NEU (Schritt 4)**
+- **Kategorien einklappbar**: Überschrift (z. B. „🍎 Obst & Gemüse") antippen = auf/zu; rechts steht die Anzahl. **Standard: alle zu** (aufgeräumt). Zustand wird pro Kategorie in `localStorage` gemerkt (Key `einkauf_collapsed_v1`). Beim **Suchen** werden passende Kategorien automatisch aufgeklappt.
+- **⭐ Oft gekauft** (ganz oben): nach Häufigkeit sortiert – je öfter ein Artikel den Kreis *draufsetzen → abhaken* macht, desto weiter oben (bei Gleichstand kommt das zuletzt Gekaufte zuerst). Top 16.
+- *„Zuletzt gekauft" wurde bewusst weggelassen:* Recency deckt der **Verlauf 🕘** schon ab (letzter Eintrag antippen = wieder drauf), und beide Listen überschnitten sich zu stark.
+- Datenquelle: Supabase-Tabelle **`stats`** (`name, emo, buys, last_buy`). Jedes **Abhaken** ruft `rpc('bump_stat')` auf (+1, atomar). Zählt für **beide Nutzer gemeinsam** und **übersteht „Verlauf leeren"**. Das Sammel-**„Liste leeren" zählt bewusst NICHT** (Wegwerfen ≠ Kauf). Client verträgt eine noch fehlende `stats`-Tabelle (Bereich bleibt dann einfach leer).
+
 **Verlauf (🕘 oben rechts)**
 - Zeigt, **wer** was **draufgesetzt** (➕) und **gekauft** (🛒) hat, mit Personen-Kürzel (B/S) und Zeit. Eintrag antippen → **wieder draufsetzen**. „Verlauf leeren" möglich. Abmelden unten im Sheet.
 
@@ -112,6 +122,7 @@ Zentrale Konstanten: `CATALOG` (Kategorien+Emoji+Name), `UNITS = ["g","kg","ml",
 - **Dunkles Theme mit true black (#000)** – OLED spart Strom. Grün als Akzent.
 - **Doppel-Tipp zum Abhaken** statt Einzel-Klick (kein Versehen).
 - **„Liste leeren" nur per 5-Sek-Halten** – bewusst schwer auslösbar, damit nichts aus Versehen weg ist; zusätzlich über den Verlauf rückholbar.
+- **Katalog standardmäßig eingeklappt** – aufgeräumt; die häufig gebrauchten Sachen sind ja oben unter „⭐ Oft gekauft" griffbereit. Häufigkeit wird **dauerhaft** in Supabase gezählt (nicht nur aus dem Verlauf), damit sie „Verlauf leeren" übersteht und für beide zusammenzählt. **Nur „Oft gekauft", kein „Zuletzt gekauft"** – Recency deckt der Verlauf schon ab.
 - **Keine dauerhafte „Erledigt"-Liste** → stattdessen Verlauf-Button oben.
 - **Stück/Dose/Bund/Pkg entfernt** – nur echte Mengen (g/kg/ml/l) oder einfache Zahl.
 - **Icons = Emojis** (gratis; wichtig, weil beim Import beliebige Zutaten kommen – Emoji wird gegen den Katalog geraten, sonst 🛒).
@@ -141,6 +152,9 @@ git push origin main
 - `verify_jwt` steht auf Default (an) und funktioniert, weil der Client per `sb.functions.invoke` automatisch den User-Token mitschickt (eingeloggter Nutzer nötig).
 - Erlaubte Origins in der Function (`ALLOWED_ORIGINS`): Live-Pages-URL + `http://localhost:8000`.
 
+**Statistik-Tabelle `stats` (Supabase, Schritt 4):**
+- Einmalig die Datei `supabase/stats.sql` im **Dashboard → SQL Editor** einfügen und **Run** (legt Tabelle `stats`, RLS-Policies, Funktion `bump_stat` und Realtime an). Setzt die Funktion `is_member()` aus Schritt 2 voraus.
+
 ---
 
 ## 7. Fahrplan / Nächste Schritte
@@ -148,7 +162,8 @@ git push origin main
 1. ✅ **Mehr Produkte** – Katalog ~130 Produkte / 11 Kategorien.
 2. ✅ **Datenbank + Login** (29.07.2026) – Supabase + Google-Login, gemeinsame Live-Liste, RLS (Bastian + Simone), Verlauf mit wer/wann.
 3. ✅ **Rezept-Import ohne Foto** (30.07.2026, live) – Link/Teilen → Zutaten via `schema.org/Recipe` + Edge Function, Portions-Regler, Checkliste. Plus **„Liste leeren"** (5-Sek-Halten).
-4. 🎨 **Icons** (später) – ggf. hübsches Icon-Set + Emoji-Fallback.
+4. ✅ **Katalog aufräumen + Vorschläge** (30.07.2026, live) – Kategorien einklappbar (Standard: zu); Top-Bereich **⭐ Oft gekauft** aus dauerhafter Statistik (`stats`). „Zuletzt gekauft" bewusst weggelassen (deckt der Verlauf ab).
+5. 🎨 **Icons** (später) – ggf. hübsches Icon-Set + Emoji-Fallback.
 
 **Handys: Bastian und Simone nutzen iPhone.**
 - **Primärweg am iPhone:** 🍳 **Link einfügen** – funktioniert überall.
@@ -169,6 +184,7 @@ git push origin main
 | Hauptdatei | `index.html` (App komplett) |
 | PWA-Dateien | `manifest.json`, `sw.js`, `icon.svg` |
 | Edge Function | `supabase/functions/recipe-import/index.ts` (Rezept-Import) |
+| Statistik | Tabelle `stats` + Funktion `bump_stat` (SQL: `supabase/stats.sql`) – „⭐ Oft gekauft" |
 | GitHub | `bastianstute88/einkaufsliste` (public) |
 | Live | https://bastianstute88.github.io/einkaufsliste/ |
 | Cache | `localStorage`, Key `einkauf_supabase_v1` (nur Cache) |

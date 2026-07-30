@@ -535,14 +535,8 @@ function render(){
 
   const q = ($("#search").value||"").toLowerCase().trim();
   let html = "";
-  // Top-Bereich: zuletzt gekauft (nach Zeit)
-  const recent = topRecent(10).filter(s=> !q || s.name.toLowerCase().includes(q));
-  if(recent.length){
-    html += `<div class="cat-h fav"><span>🔁 Zuletzt gekauft</span></div>
-      <div class="grid">${recent.map(s=>catTileHTML(s.emo||emoFor(s.name), s.name)).join("")}</div>`;
-  }
-  // Top-Bereich: oft gekauft (nach Häufigkeit)
-  const often = topOften(10).filter(s=> !q || s.name.toLowerCase().includes(q));
+  // Top-Bereich: oft gekauft (nach Häufigkeit; bei Gleichstand zuletzt Gekauftes zuerst)
+  const often = topOften(16).filter(s=> !q || s.name.toLowerCase().includes(q));
   if(often.length){
     html += `<div class="cat-h fav"><span>⭐ Oft gekauft</span></div>
       <div class="grid">${often.map(s=>catTileHTML(s.emo||emoFor(s.name), s.name)).join("")}</div>`;
@@ -589,10 +583,6 @@ function catTileHTML(emo, n){
     <span class="emo">${emo}</span><span class="nm">${esc(n)}</span></div>`;
 }
 function statsList(){ return Object.values(statsMap); }
-function topRecent(n){
-  return statsList().filter(s=>s.last_buy)
-    .sort((a,b)=> new Date(b.last_buy)-new Date(a.last_buy)).slice(0,n);
-}
 function topOften(n){
   return statsList().filter(s=>(s.buys||0)>0)
     .sort((a,b)=> (b.buys-a.buys) || (new Date(b.last_buy||0)-new Date(a.last_buy||0))).slice(0,n);
