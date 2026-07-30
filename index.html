@@ -205,6 +205,18 @@
   .rc-name{flex:1;min-width:0;font-weight:600;font-size:15px;line-height:1.25}
   .rc-badge{color:var(--green);font-weight:800;font-size:14px;flex:0 0 auto;white-space:nowrap}
   .rec-hint{color:var(--muted);font-size:12.5px;line-height:1.5;margin:2px 4px 0}
+
+  /* Liste leeren – 5 Sek. gedrückt halten */
+  .clearwrap{margin:18px 4px 2px;display:none}
+  .clearbtn{position:relative;overflow:hidden;width:100%;border:1.5px solid var(--line);
+    background:var(--card);color:var(--muted);border-radius:14px;padding:14px;font-size:14px;
+    font-weight:700;cursor:pointer;text-align:center;
+    user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:none}
+  .clearbtn .fill{position:absolute;left:0;top:0;bottom:0;width:0;
+    background:linear-gradient(90deg,#7a2727,#b23b3b);z-index:0}
+  .clearbtn .lbl{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;
+    gap:8px;pointer-events:none}
+  .clearbtn.holding{color:#fff;border-color:#b23b3b}
 </style>
 </head>
 <body>
@@ -235,6 +247,12 @@
     <div class="sec-title">Auf der Liste <span class="count" id="activeCount">0</span></div>
     <div class="grid list" id="activeGrid"></div>
     <div class="empty" id="activeEmpty">Tippe unten ein Produkt an, um es hinzuzufügen.</div>
+    <div class="clearwrap" id="clearWrap">
+      <button class="clearbtn" id="clearBtn" type="button" aria-label="Liste leeren – 5 Sekunden gedrückt halten">
+        <span class="fill" id="clearFill"></span>
+        <span class="lbl" id="clearLbl">🗑️ Zum Leeren halten</span>
+      </button>
+    </div>
   </section>
 
   <!-- Event -->
@@ -486,6 +504,7 @@ function render(){
   $("#activeGrid").innerHTML = active.map(tileHTML).join("");
   $("#activeCount").textContent = toBuy;
   $("#activeEmpty").style.display = toBuy? "none":"block";
+  $("#clearWrap").style.display = active.length ? "block" : "none";   // nur wenn Hauptbereich was hat
 
   $("#eventSection").style.display = events.length? "block":"none";
   $("#eventCount").textContent = events.length;
@@ -840,6 +859,48 @@ function checkSharedRecipe(){
     openRecipeSheet(m[0]);
   }
 }
+
+/* ---------- Liste leeren (5 Sek. gedrückt halten) ---------- */
+const clearBtn=$("#clearBtn"), clearFill=$("#clearFill"), clearLbl=$("#clearLbl");
+let holdTimer=null, holdIv=null;
+const HOLD_MS=5000;
+function clearLabelReset(){ clearLbl.textContent="🗑️ Zum Leeren halten"; }
+function clearHoldStart(e){
+  e.preventDefault();
+  if(holdTimer) return;
+  clearBtn.classList.add("holding");
+  clearFill.style.transition="width "+(HOLD_MS/1000)+"s linear";
+  clearFill.style.width="100%";
+  let rem=5; clearLbl.textContent="Noch "+rem+"… (loslassen bricht ab)";
+  holdIv=setInterval(()=>{ rem--; if(rem>0) clearLbl.textContent="Noch "+rem+"… (loslassen bricht ab)"; }, 1000);
+  holdTimer=setTimeout(clearHoldFire, HOLD_MS);
+}
+function clearHoldCancel(){
+  if(holdTimer){ clearTimeout(holdTimer); holdTimer=null; }
+  if(holdIv){ clearInterval(holdIv); holdIv=null; }
+  clearBtn.classList.remove("holding");
+  clearFill.style.transition="width .2s"; clearFill.style.width="0";
+  clearLabelReset();
+}
+function clearHoldFire(){ clearHoldCancel(); clearActiveList(); }
+async function clearActiveList(){
+  const toClear=state.items.filter(i=>!SECTIONS.includes(i.unit));   // nur "Auf der Liste"
+  if(!toClear.length) return;
+  const ids=toClear.map(i=>i.id);
+  const rows=toClear.map(it=>{ const h=logHistLocal(it,"buy");
+    return {id:h.id,name:h.name,emo:h.emo,action:"buy",who:h.who,who_name:h.who_name,who_avatar:h.who_avatar}; });
+  state.items=state.items.filter(i=>SECTIONS.includes(i.unit));
+  armedId=null; render(); if(historyOpen) renderHistory();
+  try{
+    if(rows.length) await sb.from("history").insert(rows);
+    await sb.from("items").delete().in("id", ids);
+  }catch(e){ flagSync(false); }
+}
+clearBtn.addEventListener("pointerdown", clearHoldStart);
+clearBtn.addEventListener("pointerup", clearHoldCancel);
+clearBtn.addEventListener("pointerleave", clearHoldCancel);
+clearBtn.addEventListener("pointercancel", clearHoldCancel);
+clearBtn.addEventListener("contextmenu", e=>e.preventDefault());
 
 /* ---------- Verlauf ---------- */
 function relTime(t){
