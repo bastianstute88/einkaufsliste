@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#2e7d5b">
 <title>Unsere Einkaufsliste</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Einkauf">
 <style>
   :root{
     --green:#3ea57a;
@@ -177,6 +182,29 @@
   .gate .small{color:var(--muted);font-size:13px;margin-top:22px}
   .gate .textbtn{background:none;border:none;color:var(--green);font-weight:700;font-size:14px;cursor:pointer;margin-top:18px}
   .gate.busy .gbtn{opacity:.5;pointer-events:none}
+
+  /* Rezept-Import */
+  .rec-status{white-space:pre-line;color:#a7e2c4;background:var(--green-soft);border-radius:14px;
+    padding:14px;font-size:14px;margin:6px 0 4px;line-height:1.5}
+  .rec-status.err{color:#ffb4b4;background:#2a1414}
+  .rec-status.err b{color:#ffd2d2}
+  .rec-title{font-size:18px;font-weight:800;margin:2px 0 12px;line-height:1.3}
+  .rec-portions{display:flex;align-items:center;gap:12px;justify-content:center;
+    background:var(--card-2);border-radius:14px;padding:10px;margin-bottom:14px}
+  .rec-portions .lbl{color:var(--muted);font-weight:700;font-size:14px;margin-right:6px}
+  .rec-step{width:40px;height:40px;font-size:22px}
+  .rec-amount{font-size:22px;font-weight:800;min-width:34px;text-align:center}
+  .rec-list{max-height:42vh;overflow-y:auto;margin-bottom:2px}
+  .rec-row{display:flex;align-items:center;gap:12px;padding:10px 4px;border-bottom:1px solid var(--line);cursor:pointer}
+  .rec-row:active{background:var(--card-2)}
+  .rc-check{width:24px;height:24px;border-radius:8px;border:2px solid var(--line);flex:0 0 auto;
+    display:grid;place-items:center;font-size:15px;color:#fff;font-weight:900}
+  .rec-row.on .rc-check{background:var(--green);border-color:var(--green)}
+  .rec-row.off{opacity:.4}
+  .rc-emo{font-size:22px;width:26px;text-align:center;flex:0 0 auto}
+  .rc-name{flex:1;min-width:0;font-weight:600;font-size:15px;line-height:1.25}
+  .rc-badge{color:var(--green);font-weight:800;font-size:14px;flex:0 0 auto;white-space:nowrap}
+  .rec-hint{color:var(--muted);font-size:12.5px;line-height:1.5;margin:2px 4px 0}
 </style>
 </head>
 <body>
@@ -189,7 +217,8 @@
       </div>
       <div class="head-right">
         <span class="syncdot" id="syncDot" title="Sync-Status"></span>
-        <button class="hist-btn" id="scanBtn" aria-label="Rezept scannen">📷</button>
+        <button class="hist-btn" id="scanBtn" aria-label="Rezept scannen (Foto)" style="display:none">📷</button>
+        <button class="hist-btn" id="recipeBtn" aria-label="Rezept importieren">🍳</button>
         <button class="hist-btn" id="histBtn" aria-label="Verlauf">🕘</button>
         <div class="avatars" id="avatars"></div>
       </div>
@@ -276,6 +305,43 @@
   <div class="sheet-actions">
     <button class="btn btn-ghost" id="scanClose">Schließen</button>
     <button class="btn btn-primary" id="scanDemoAdd">Beispiel übernehmen</button>
+  </div>
+</div>
+
+<!-- Bottom sheet: Rezept-Import -->
+<div class="sheet" id="recipeSheet">
+  <div class="grab"></div>
+  <h3>🍳 Rezept importieren</h3>
+  <p class="sub">Rezept-Link einfügen – oder in der Rezept-App „Teilen → Einkaufsliste"</p>
+
+  <!-- 1) Eingabe -->
+  <div id="recipeInput">
+    <input class="search" id="recipeUrl" placeholder="https://www.chefkoch.de/rezepte/…" autocomplete="off" inputmode="url" style="padding-left:14px">
+    <div class="rec-hint">Funktioniert mit Chefkoch, Lecker, Essen&amp;Trinken u.&nbsp;v.&nbsp;m. – die Zutaten werden exakt ausgelesen, kein Foto nötig.</div>
+    <div class="sheet-actions" style="margin-top:16px">
+      <button class="btn btn-ghost" id="recipeClose">Abbrechen</button>
+      <button class="btn btn-primary" id="recipeFetch">Zutaten holen</button>
+    </div>
+  </div>
+
+  <!-- 2) Status / Fehler -->
+  <div id="recipeStatus" class="rec-status" style="display:none"></div>
+
+  <!-- 3) Ergebnis -->
+  <div id="recipeResult" style="display:none">
+    <div class="rec-title" id="recipeTitle"></div>
+    <div class="rec-portions">
+      <span class="lbl">Portionen</span>
+      <button class="step rec-step" id="recMinus">−</button>
+      <span class="rec-amount" id="recServings">4</span>
+      <button class="step rec-step" id="recPlus">+</button>
+    </div>
+    <div class="rec-list" id="recipeIngs"></div>
+    <div class="rec-hint" id="recipeCount"></div>
+    <div class="sheet-actions" style="margin-top:16px">
+      <button class="btn btn-ghost" id="recipeBack">Zurück</button>
+      <button class="btn btn-primary" id="recipeAdd">Auf die Liste</button>
+    </div>
   </div>
 </div>
 
@@ -580,6 +646,7 @@ function openSheet(sel){ $("#sheetBg").classList.add("open"); $(sel).classList.a
 function closeSheet(){
   $("#sheetBg").classList.remove("open");
   $("#qtySheet").classList.remove("open"); $("#scanSheet").classList.remove("open"); $("#histSheet").classList.remove("open");
+  $("#recipeSheet").classList.remove("open");
   historyOpen=false;
 }
 $("#sheetBg").onclick=closeSheet;
@@ -612,6 +679,167 @@ $("#scanDemoAdd").onclick=()=>{
   addItem("Butter","🧈",100,"g");
   closeSheet();
 };
+
+/* ---------- Rezept-Import (ohne Foto: liest schema.org/Recipe per Edge Function) ---------- */
+const REC_OTHER_UNITS = ["el","tl","prise","prisen","msp","messerspitze","handvoll","bund",
+  "zehe","zehen","stück","stk","dose","dosen","pkg","packung","päckchen","becher","tasse",
+  "glas","schuss","blatt","kugel","kugeln","scheibe","scheiben","tropfen","cm","kopf","stange","stangen"];
+
+function recNormUnit(u){
+  const x=(u||"").toLowerCase().replace(/\./g,"");
+  if(UNITS.includes(x)) return {kind:"real", unit:x};
+  if(REC_OTHER_UNITS.includes(x)) return {kind:"other", unit:u};
+  return null;
+}
+function recParseNum(tok){
+  if(!tok) return null; tok=tok.trim();
+  const uni={"½":0.5,"¼":0.25,"¾":0.75,"⅓":1/3,"⅔":2/3};
+  if(uni[tok]!=null) return uni[tok];
+  let m=tok.match(/^(\d+)\/(\d+)$/); if(m) return (+m[1])/(+m[2]);
+  m=tok.match(/^(\d+(?:[.,]\d+)?)\s*[-–]\s*\d+(?:[.,]\d+)?$/); if(m) return parseFloat(m[1].replace(",","."));
+  m=tok.match(/^\d+(?:[.,]\d+)?$/); if(m) return parseFloat(tok.replace(",","."));
+  return null;
+}
+function recCleanName(s){
+  return s.replace(/\([^)]*\)/g,"").replace(/\s{2,}/g," ").replace(/^[\s,;-]+|[\s,;-]+$/g,"").trim();
+}
+function recParse(raw){
+  let s=(raw||"").trim();
+  const numRe=/^(\d+\s+\d+\/\d+|\d+\/\d+|[½¼¾⅓⅔]|\d+(?:[.,]\d+)?(?:\s*[-–]\s*\d+(?:[.,]\d+)?)?)\s*/;
+  let num=null, m=s.match(numRe);
+  if(m){
+    const g=m[1].trim(), mixed=g.match(/^(\d+)\s+(\d+)\/(\d+)$/);
+    num = mixed ? (+mixed[1])+(+mixed[2])/(+mixed[3]) : recParseNum(g);
+    s=s.slice(m[0].length);
+  }
+  let unitKind=null, unit=null;
+  if(num!=null){
+    const um=s.match(/^([^\s]+)\s+/);
+    if(um){ const nu=recNormUnit(um[1]); if(nu){ unitKind=nu.kind; unit=nu.unit; s=s.slice(um[0].length); } }
+  }
+  return { name:recCleanName(s)||recCleanName(raw), num, unitKind, unit, raw };
+}
+function recRoundReal(n,unit){
+  if(unit==="kg"||unit==="l") return Math.round(n*100)/100;
+  if(n>=100) return Math.round(n/10)*10;
+  if(n>=20)  return Math.round(n/5)*5;
+  return Math.round(n);
+}
+function fmtQty(n){ return n==null? "" : String(Math.round(n*100)/100).replace(".",","); }
+
+// Emoji raten: Basis-Nomen gegen den Katalog matchen, sonst 🛒
+function guessEmo(name){
+  const base=(name||"").split("(")[0].split(",")[0].trim().toLowerCase();
+  if(!base) return "🛒";
+  for(const [,items] of CATALOG){ for(const [emo,n] of items){ if(base===n.toLowerCase()) return emo; } }
+  for(const [,items] of CATALOG){ for(const [emo,n] of items){
+    const ln=n.toLowerCase(); if(ln.length>=4 && base.includes(ln)) return emo;
+  } }
+  return "🛒";
+}
+
+// Parsed-Zutat + Faktor -> App-Modell {name, qty, unit, emo}
+function recToItem(p, factor){
+  const num = p.num!=null ? p.num*factor : null;
+  if(p.unitKind==="real")  return { name:p.name, qty:recRoundReal(num,p.unit), unit:p.unit, emo:guessEmo(p.name) };
+  if(p.unitKind==="other" && num!=null){
+    const amt=fmtQty(Math.round(num*2)/2);
+    return { name:`${p.name} (${amt} ${p.unit})`, qty:null, unit:null, emo:guessEmo(p.name) };
+  }
+  if(num!=null) return { name:p.name, qty:Math.max(1,Math.round(num)), unit:null, emo:guessEmo(p.name) };
+  return { name:p.name, qty:null, unit:null, emo:guessEmo(p.name) };
+}
+
+/* ---- Import-State + UI ---- */
+let recipe=null;      // { title, base, parsed:[{...,include}] }
+let recServings=1;
+
+function openRecipeSheet(prefillUrl){
+  recipe=null;
+  $("#recipeInput").style.display="block";
+  $("#recipeStatus").style.display="none";
+  $("#recipeResult").style.display="none";
+  $("#recipeUrl").value = prefillUrl || "";
+  openSheet("#recipeSheet");
+  if(prefillUrl) recipeFetch();   // via "Teilen" direkt geholt
+}
+function recStatus(msg, isErr){
+  const el=$("#recipeStatus");
+  el.style.display="block"; el.classList.toggle("err", !!isErr); el.innerHTML=msg;
+}
+async function recipeFetch(){
+  const url=($("#recipeUrl").value||"").trim();
+  if(!/^https?:\/\//i.test(url)){ recStatus("Bitte einen gültigen Rezept-Link (mit https://) einfügen."); return; }
+  $("#recipeInput").style.display="none";
+  $("#recipeResult").style.display="none";
+  recStatus("⏳ Rezept wird geholt …");
+  try{
+    const { data, error } = await sb.functions.invoke("recipe-import", { body:{ url } });
+    if(error) throw error;
+    if(!data || !data.ok) throw new Error((data&&data.error)||"Unbekannter Fehler.");
+    if(!data.ingredients || !data.ingredients.length) throw new Error("Auf der Seite standen keine Zutaten.");
+    loadRecipe(data);
+  }catch(e){
+    const msg=String(e&&e.message||e);
+    recStatus(`⚠️ <b>Klappt noch nicht.</b>\n${esc(msg)}\n\nMögliche Gründe: der Link ist keine Rezeptseite, oder die Server-Funktion ist noch nicht deployed.`, true);
+    $("#recipeInput").style.display="block";
+  }
+}
+function loadRecipe(data){
+  recipe={ title:data.title||"Rezept", base:(data.servings||1), parsed:data.ingredients.map(s=>{ const p=recParse(s); p.include=true; return p; }) };
+  recServings = recipe.base || 1;
+  $("#recipeStatus").style.display="none";
+  $("#recipeInput").style.display="none";
+  $("#recipeResult").style.display="block";
+  $("#recipeTitle").textContent = recipe.title + (data.servings? "" : "");
+  drawRecipe();
+}
+function drawRecipe(){
+  $("#recServings").textContent = recServings;
+  const factor = recServings/(recipe.base||1);
+  $("#recipeIngs").innerHTML = recipe.parsed.map((p,i)=>{
+    const it=recToItem(p, factor);
+    const badge = it.unit ? `${fmtQty(it.qty)} ${it.unit}` : (it.qty!=null ? fmtQty(it.qty) : "");
+    return `<div class="rec-row ${p.include?'on':'off'}" data-i="${i}">
+      <span class="rc-check">${p.include?'✓':''}</span>
+      <span class="rc-emo">${it.emo}</span>
+      <span class="rc-name">${esc(it.name)}</span>
+      <span class="rc-badge">${esc(badge)}</span></div>`;
+  }).join("");
+  const n=recipe.parsed.filter(p=>p.include).length;
+  $("#recipeCount").textContent = `${n} von ${recipe.parsed.length} Zutaten werden übernommen`;
+}
+$("#recPlus").onclick =()=>{ recServings++; drawRecipe(); };
+$("#recMinus").onclick=()=>{ if(recServings>1){ recServings--; drawRecipe(); } };
+$("#recipeIngs").onclick=e=>{
+  const row=e.target.closest("[data-i]"); if(!row) return;
+  const p=recipe.parsed[+row.getAttribute("data-i")]; p.include=!p.include; drawRecipe();
+};
+$("#recipeFetch").onclick=recipeFetch;
+$("#recipeUrl").addEventListener("keydown",e=>{ if(e.key==="Enter") recipeFetch(); });
+$("#recipeClose").onclick=closeSheet;
+$("#recipeBack").onclick=()=>{
+  $("#recipeResult").style.display="none";
+  $("#recipeStatus").style.display="none";
+  $("#recipeInput").style.display="block";
+};
+$("#recipeAdd").onclick=()=>{
+  const factor=recServings/(recipe.base||1);
+  recipe.parsed.filter(p=>p.include).forEach(p=>{ const it=recToItem(p,factor); addItem(it.name, it.emo, it.qty, it.unit); });
+  closeSheet();
+};
+$("#recipeBtn").onclick=()=>openRecipeSheet();
+
+// "Teilen an App": geteilte URL aus den Query-Parametern ziehen
+function checkSharedRecipe(){
+  const p=new URLSearchParams(location.search);
+  const raw=p.get("share_url")||p.get("share_text")||p.get("share_title")||"";
+  const m=raw.match(/https?:\/\/[^\s]+/);
+  if(m){
+    history.replaceState(null,"",location.pathname);   // URL säubern -> kein Re-Trigger bei Reload
+    openRecipeSheet(m[0]);
+  }
+}
 
 /* ---------- Verlauf ---------- */
 function relTime(t){
@@ -754,11 +982,15 @@ async function boot(){
   render();                 // erst Cache/leeres Bild
   await initData();         // dann echte Daten
   subscribeRealtime();
+  checkSharedRecipe();      // per "Teilen" gestartet? -> Import-Sheet öffnen
 }
 
 sb.auth.onAuthStateChange((event)=>{
   if(event==="SIGNED_IN" && !me){ boot(); }
 });
+
+// PWA anmelden -> macht "Zum Home-Bildschirm" + "Teilen → Einkaufsliste" möglich
+if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js").catch(()=>{}); }
 
 boot();
 </script>
