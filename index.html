@@ -217,6 +217,14 @@
   .clearbtn .lbl{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;
     gap:8px;pointer-events:none}
   .clearbtn.holding{color:#fff;border-color:#b23b3b}
+
+  /* Einklappbare Kategorien + Top-Bereiche (Zuletzt/Oft gekauft) */
+  .cat-h.toggle{cursor:pointer;user-select:none;-webkit-user-select:none}
+  .cat-h.toggle:active{opacity:.65}
+  .cat-h .chev{font-size:11px;color:var(--muted);width:12px;display:inline-block;text-align:center}
+  .cat-h .cat-n{margin-left:auto;background:var(--card-2);color:var(--muted);border-radius:20px;
+    padding:1px 8px;font-size:11px;font-weight:800}
+  .cat-h.fav{color:var(--green)}
 </style>
 </head>
 <body>
@@ -457,6 +465,13 @@ state.history = state.history || [];
 let me = null;              // {id, email, name, avatar}
 let profiles = {};          // user_id -> {user_id, name, avatar_url}
 let historyOpen = false;
+let statsMap = {};          // name -> {name, emo, buys, last_buy}  (aus Supabase-Tabelle "stats")
+
+// Einklapp-Zustand der Katalog-Kategorien (Standard: alle zu), gemerkt in localStorage
+const CKEY = "einkauf_collapsed_v1";
+let collapsedArr = JSON.parse(localStorage.getItem(CKEY) || "null");
+if(!collapsedArr){ collapsedArr = CATALOG.map(([c])=>c); localStorage.setItem(CKEY, JSON.stringify(collapsedArr)); }
+let collapsedSet = new Set(collapsedArr);
 
 // items:   [ {id(uuid), name, emo, qty, unit} ]
 // history: [ {id(uuid), name, emo, action:'add'|'buy', who, who_name, who_avatar, t} ]
@@ -518,18 +533,31 @@ function render(){
   $("#vorratCount").textContent = vorrat.length;
   $("#vorratGrid").innerHTML = vorrat.map(tileHTML).join("");
 
-  $("#catalog").innerHTML = CATALOG.map(([cat,items])=>{
-    const q = ($("#search").value||"").toLowerCase().trim();
+  const q = ($("#search").value||"").toLowerCase().trim();
+  let html = "";
+  // Top-Bereich: zuletzt gekauft (nach Zeit)
+  const recent = topRecent(10).filter(s=> !q || s.name.toLowerCase().includes(q));
+  if(recent.length){
+    html += `<div class="cat-h fav"><span>🔁 Zuletzt gekauft</span></div>
+      <div class="grid">${recent.map(s=>catTileHTML(s.emo||emoFor(s.name), s.name)).join("")}</div>`;
+  }
+  // Top-Bereich: oft gekauft (nach Häufigkeit)
+  const often = topOften(10).filter(s=> !q || s.name.toLowerCase().includes(q));
+  if(often.length){
+    html += `<div class="cat-h fav"><span>⭐ Oft gekauft</span></div>
+      <div class="grid">${often.map(s=>catTileHTML(s.emo||emoFor(s.name), s.name)).join("")}</div>`;
+  }
+  // Katalog – einklappbare Kategorien (beim Suchen immer aufgeklappt)
+  html += CATALOG.map(([cat,items])=>{
     const list = items.filter(([,n])=> !q || n.toLowerCase().includes(q));
     if(!list.length) return "";
-    return `<div class="cat-h">${items[0][0]} ${cat}</div>
-      <div class="grid">${list.map(([emo,n])=>{
-        const cnt = state.items.filter(i=>i.name===n).length;
-        return `<div class="tile" data-cat="${esc(n)}">
-          ${cnt? `<span class="qty">${cnt}×</span>`:""}
-          <span class="emo">${emo}</span><span class="nm">${esc(n)}</span></div>`;
-      }).join("")}</div>`;
+    const collapsed = q ? false : collapsedSet.has(cat);
+    const grid = collapsed ? "" : `<div class="grid">${list.map(([emo,n])=>catTileHTML(emo,n)).join("")}</div>`;
+    return `<div class="cat-h toggle" data-cat-toggle="${esc(cat)}">
+      <span class="chev">${collapsed?"▸":"▾"}</span><span>${items[0][0]} ${esc(cat)}</span>
+      <span class="cat-n">${list.length}</span></div>${grid}`;
   }).join("");
+  $("#catalog").innerHTML = html;
 
   fitAll();
   saveCache();
@@ -552,6 +580,29 @@ function tileHTML(it){
     ${q? `<span class="qty">${q}</span>`:""}
     ${armed? `<span class="armed-check">✓</span>`:""}
     <span class="emo">${it.emo}</span><span class="nm">${esc(it.name)}</span></div>`;
+}
+// Katalog-/Vorschlags-Kachel (Antippen = draufsetzen)
+function catTileHTML(emo, n){
+  const cnt = state.items.filter(i=>i.name===n).length;
+  return `<div class="tile" data-cat="${esc(n)}" data-emo="${esc(emo)}">
+    ${cnt? `<span class="qty">${cnt}×</span>`:""}
+    <span class="emo">${emo}</span><span class="nm">${esc(n)}</span></div>`;
+}
+function statsList(){ return Object.values(statsMap); }
+function topRecent(n){
+  return statsList().filter(s=>s.last_buy)
+    .sort((a,b)=> new Date(b.last_buy)-new Date(a.last_buy)).slice(0,n);
+}
+function topOften(n){
+  return statsList().filter(s=>(s.buys||0)>0)
+    .sort((a,b)=> (b.buys-a.buys) || (new Date(b.last_buy||0)-new Date(a.last_buy||0))).slice(0,n);
+}
+function bumpStatLocal(it){
+  const s = statsMap[it.name] || {name:it.name, emo:it.emo||emoFor(it.name), buys:0, last_buy:null};
+  s.buys = (s.buys||0)+1;
+  s.last_buy = new Date().toISOString();
+  if(!s.emo) s.emo = it.emo||emoFor(it.name);
+  statsMap[it.name] = s;
 }
 
 /* ---------- Avatare im Header ---------- */
@@ -592,22 +643,33 @@ async function addItem(name, emo, qty=null, unit=null){
 async function buyItem(id){
   const it = byId(id); if(!it) return;
   const h = logHistLocal(it, "buy");
+  bumpStatLocal(it);                       // Häufigkeit + "zuletzt" hochzählen (lokal sofort)
   state.items = state.items.filter(i=>i.id!==id);
   render(); if(historyOpen) renderHistory();
   try{
     await sb.from("history").insert({ id:h.id, name:h.name, emo:h.emo, action:"buy", who:h.who, who_name:h.who_name, who_avatar:h.who_avatar });
     await sb.from("items").delete().eq("id", id);
   }catch(e){ flagSync(false); }
+  // eigener Zähler in Supabase (Fehler egal, z. B. falls Tabelle noch nicht angelegt)
+  try{ await sb.rpc("bump_stat", { p_name: it.name, p_emo: it.emo }); }catch(e){}
 }
 
 /* ---------- Tap handling ---------- */
 let armedId = null;
 document.addEventListener("click", e=>{
+  const catToggle = e.target.closest("[data-cat-toggle]");
+  if(catToggle){
+    const c = catToggle.getAttribute("data-cat-toggle");
+    if(collapsedSet.has(c)) collapsedSet.delete(c); else collapsedSet.add(c);
+    localStorage.setItem(CKEY, JSON.stringify([...collapsedSet]));
+    render();
+    return;
+  }
   const catTile = e.target.closest("[data-cat]");
   const itemTile = e.target.closest("[data-id]");
   if(catTile){
     armedId=null;
-    openAdd(catTile.getAttribute("data-cat"));
+    openAdd(catTile.getAttribute("data-cat"), catTile.getAttribute("data-emo"));
     return;
   }
   if(itemTile){
@@ -984,6 +1046,8 @@ async function initData(){
   state.items   = (items||[]).map(rowToItem);
   state.history = (hist||[]).map(rowToHist);
   profiles = {}; (profs||[]).forEach(p=>{ profiles[p.user_id]=p; });
+  // Statistik separat laden (eigener try, damit eine noch fehlende Tabelle den Start nicht bricht)
+  try{ const { data:st } = await sb.from("stats").select("*"); statsMap={}; (st||[]).forEach(s=>{ statsMap[s.name]=s; }); }catch(e){ statsMap={}; }
   saveCache();
   renderAvatars();
   render();
@@ -1007,6 +1071,14 @@ function subscribeRealtime(){
     .on("postgres_changes",{event:"DELETE",schema:"public",table:"history"}, p=>{
         state.history = state.history.filter(h=>h.id!==p.old.id);
         if(historyOpen) renderHistory();
+    })
+    .subscribe();
+  // Statistik live (damit beide dieselbe Reihenfolge sehen)
+  sb.channel("stats-ch")
+    .on("postgres_changes",{event:"*",schema:"public",table:"stats"}, p=>{
+        if(p.eventType==="DELETE"){ if(p.old&&p.old.name) delete statsMap[p.old.name]; }
+        else if(p.new){ statsMap[p.new.name] = { name:p.new.name, emo:p.new.emo, buys:p.new.buys, last_buy:p.new.last_buy }; }
+        render();
     })
     .subscribe();
 }
