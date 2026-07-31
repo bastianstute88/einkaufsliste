@@ -2,7 +2,7 @@
 
 Eine eigene Einkaufslisten-App (Bring-Ersatz) für Bastian und seine Frau.
 
-**Stand (zuletzt aktualisiert 30.07.2026):** **Schritt 3 + 4 fertig & live.**
+**Stand (zuletzt aktualisiert 31.07.2026):** **Schritt 3 + 4 fertig & live.**
 - **Schritt 3 – Rezept-Import ohne Foto:** Ein Rezept-Link (Chefkoch & Co.) wird eingefügt oder geteilt, die Zutaten werden **exakt** ausgelesen (aus dem `schema.org/Recipe`-Datenblock der Seite), auf die gewünschte Portionszahl umgerechnet und auf die Liste gesetzt. Kein Bild-Scan, keine KI, keine Kosten.
 - **Schritt 4 – Aufgeräumter Katalog + smarte Vorschläge:** Kategorien sind **einklappbar** (Standard: zu). Ganz oben ein Bereich **⭐ Oft gekauft** aus einer dauerhaften Häufigkeits-Statistik (Supabase-Tabelle `stats`). *(„Zuletzt gekauft" wurde bewusst weggelassen – das deckt der Verlauf 🕘 schon ab.)*
 - Außerdem: **„Liste leeren" per 5-Sekunden-Halten**.
@@ -62,7 +62,10 @@ state = {
 - `profiles(user_id, email, name, avatar_url)` – für Mitglieder lesbar; jeder pflegt beim Login sein eigenes.
 - `items(id, name, emo, qty, unit, created_at, created_by)` – die geteilte Liste.
 - `history(id, name, emo, action, who, who_name, who_avatar, created_at)` – Verlauf.
-- Realtime-Publication auf `items` + `history` aktiviert.
+- `stats(name, emo, buys, last_buy)` – Kauf-Häufigkeit pro Produkt (Schritt 4). Nur für Mitglieder (RLS). Wird per Funktion `bump_stat(p_name, p_emo)` bei jedem Abhaken atomar +1 gezählt; Basis für „⭐ Oft gekauft". SQL: `supabase/stats.sql`.
+- Realtime-Publication auf `items` + `history` + `stats` aktiviert.
+
+Hinweis: Die Statistik liegt **nicht** in `state`, sondern in einer separaten Map `statsMap` (aus Tabelle `stats`).
 
 **Ein neues Mitglied hinzufügen:** im Supabase-SQL-Editor
 `insert into public.members(email, display_name) values ('neue@gmail.com','Name');`
