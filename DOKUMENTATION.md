@@ -2,7 +2,8 @@
 
 Eine eigene Einkaufslisten-App (Bring-Ersatz) für Bastian und seine Frau.
 
-**Stand (zuletzt aktualisiert 31.07.2026):** **Schritt 3 + 4 fertig & live.**
+**Stand (zuletzt aktualisiert 01.08.2026):** **Schritt 3 + 4 fertig & live.**
+- **Menge frei eintippen (01.08.2026):** Im Mengen-Menü ist die große Zahl jetzt ein **Eingabefeld** mit Zahlen-Tastatur (`inputmode="decimal"`). Man tippt z. B. **600** direkt ein, statt oft **+1** zu drücken. Die **+/−**-Knöpfe bleiben für schnelle kleine Änderungen. Umgesetzt über `<input id="amount">`; `#amount.oninput` schreibt nach `tmp.qty`, `drawSheet()` überschreibt das Feld nicht, solange es fokussiert ist.
 - **Schritt 3 – Rezept-Import ohne Foto:** Ein Rezept-Link (Chefkoch & Co.) wird eingefügt oder geteilt, die Zutaten werden **exakt** ausgelesen (aus dem `schema.org/Recipe`-Datenblock der Seite), auf die gewünschte Portionszahl umgerechnet und auf die Liste gesetzt. Kein Bild-Scan, keine KI, keine Kosten.
 - **Schritt 4 – Aufgeräumter Katalog + smarte Vorschläge:** Kategorien sind **einklappbar** (Standard: zu). Ganz oben ein Bereich **⭐ Oft gekauft** aus einer dauerhaften Häufigkeits-Statistik (Supabase-Tabelle `stats`). *(„Zuletzt gekauft" wurde bewusst weggelassen – das deckt der Verlauf 🕘 schon ab.)*
 - Außerdem: **„Liste leeren" per 5-Sekunden-Halten**.

@@ -137,8 +137,12 @@
   .step{width:48px;height:48px;border-radius:14px;border:none;background:var(--card-2);
     color:var(--green);font-size:26px;font-weight:700;cursor:pointer}
   .step:active{transform:scale(.92)}
-  .amount{font-size:30px;font-weight:800;min-width:70px;text-align:center}
-  .amount.none{font-size:19px;color:var(--muted);font-weight:700}
+  .amount{font-size:30px;font-weight:800;width:104px;max-width:42vw;text-align:center;
+    color:inherit;background:transparent;border:none;outline:none;
+    border-bottom:2px dashed var(--line);border-radius:0;padding:2px 4px;-moz-appearance:textfield}
+  .amount:focus{border-bottom-color:var(--green)}
+  .amount::placeholder{font-size:19px;color:var(--muted);font-weight:700;opacity:1}
+  .amount::-webkit-outer-spin-button,.amount::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
   .units{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:22px}
   .unit{border:1.5px solid var(--line);background:var(--card-2);border-radius:12px;padding:9px 14px;
     font-size:14px;font-weight:700;color:var(--muted);cursor:pointer}
@@ -306,7 +310,7 @@
   <p class="sub" id="qtySub" style="display:none"></p>
   <div class="qtyrow" id="qtyrow">
     <button class="step" id="minus">−</button>
-    <div class="amount" id="amount">ohne</div>
+    <input class="amount" id="amount" type="text" inputmode="decimal" placeholder="ohne" aria-label="Menge eintippen">
     <button class="step" id="plus">+</button>
   </div>
   <div class="units" id="units"></div>
@@ -694,8 +698,8 @@ function unitChip(u,label){ return `<div class="unit ${tmp.unit===u?'active':''}
 function drawSheet(){
   const hideQty = SECTIONS.includes(tmp.unit);
   $("#qtyrow").style.display = hideQty ? "none" : "flex";
-  $("#amount").textContent = tmp.qty==null ? "ohne" : tmp.qty;
-  $("#amount").classList.toggle("none", tmp.qty==null);
+  if(document.activeElement !== $("#amount"))            // beim Tippen nicht überschreiben
+    $("#amount").value = tmp.qty==null ? "" : tmp.qty;
   const row1 = UNITS.map(u=>unitChip(u,u)).join("") + unitChip("Tiefkühl","❄️ Tiefkühl");
   const row2 = SECTIONS.map(u=>{ const t=TAGS.find(x=>x[0]===u); return unitChip(u, t[1]+" "+u); }).join("");
   $("#units").innerHTML = row1 + `<div class="unit-break"></div>` + row2;
@@ -707,6 +711,14 @@ $("#minus").onclick=()=>{
   tmp.qty = n<1 ? null : n;
   drawSheet();
 };
+// Zahl direkt eintippen (Zahlen-Tastatur) – ohne dass +/− verloren gehen
+$("#amount").oninput=()=>{
+  const raw = $("#amount").value.replace(",",".");
+  const n = parseFloat(raw);
+  tmp.qty = (raw.trim()==="" || isNaN(n) || n<=0) ? null : n;
+};
+$("#amount").onfocus=()=>{ $("#amount").select(); };
+$("#amount").onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); $("#amount").blur(); $("#saveBtn").click(); } };
 $("#units").onclick=e=>{
   const el=e.target.closest("[data-unit]"); if(!el) return;
   const u=el.getAttribute("data-unit");
