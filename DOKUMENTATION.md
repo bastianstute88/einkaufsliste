@@ -4,6 +4,7 @@ Eine eigene Einkaufslisten-App (Bring-Ersatz) für Bastian und seine Frau.
 
 **Stand (zuletzt aktualisiert 01.08.2026):** **Schritt 3 + 4 fertig & live.**
 - **Menge frei eintippen (01.08.2026):** Im Mengen-Menü ist die große Zahl jetzt ein **Eingabefeld** mit Zahlen-Tastatur (`inputmode="decimal"`). Man tippt z. B. **600** direkt ein, statt oft **+1** zu drücken. Die **+/−**-Knöpfe bleiben für schnelle kleine Änderungen. Umgesetzt über `<input id="amount">`; `#amount.oninput` schreibt nach `tmp.qty`, `drawSheet()` überschreibt das Feld nicht, solange es fokussiert ist.
+- **Menge im Verlauf (01.08.2026):** Der Verlauf zeigt jetzt die **Menge** mit an (z. B. „🥫 Tomaten · 3", „🍖 Fleisch · 600 g"). Dafür speichert die `history` zusätzlich `qty` + `unit` (neue Spalten, siehe `supabase/history_qty.sql`), und „+ dazu" übernimmt die Menge gleich mit. **Migration nötig:** SQL aus `supabase/history_qty.sql` einmalig im Supabase-Editor ausführen.
 - **Schritt 3 – Rezept-Import ohne Foto:** Ein Rezept-Link (Chefkoch & Co.) wird eingefügt oder geteilt, die Zutaten werden **exakt** ausgelesen (aus dem `schema.org/Recipe`-Datenblock der Seite), auf die gewünschte Portionszahl umgerechnet und auf die Liste gesetzt. Kein Bild-Scan, keine KI, keine Kosten.
 - **Schritt 4 – Aufgeräumter Katalog + smarte Vorschläge:** Kategorien sind **einklappbar** (Standard: zu). Ganz oben ein Bereich **⭐ Oft gekauft** aus einer dauerhaften Häufigkeits-Statistik (Supabase-Tabelle `stats`). *(„Zuletzt gekauft" wurde bewusst weggelassen – das deckt der Verlauf 🕘 schon ab.)*
 - Außerdem: **„Liste leeren" per 5-Sekunden-Halten**.
@@ -47,7 +48,7 @@ Eine eigene Einkaufslisten-App (Bring-Ersatz) für Bastian und seine Frau.
 ```js
 state = {
   items:   [ {id, name, emo, qty, unit} ],                        // aktuell auf der Liste
-  history: [ {id, name, emo, action, who, who_name, who_avatar, t} ] // Verlauf, neuester zuerst
+  history: [ {id, name, emo, action, qty, unit, who, who_name, who_avatar, t} ] // Verlauf, neuester zuerst
 }
 ```
 
@@ -62,7 +63,7 @@ state = {
 - `is_member()` – SECURITY-DEFINER-Funktion, Basis aller RLS-Policies.
 - `profiles(user_id, email, name, avatar_url)` – für Mitglieder lesbar; jeder pflegt beim Login sein eigenes.
 - `items(id, name, emo, qty, unit, created_at, created_by)` – die geteilte Liste.
-- `history(id, name, emo, action, who, who_name, who_avatar, created_at)` – Verlauf.
+- `history(id, name, emo, action, qty, unit, who, who_name, who_avatar, created_at)` – Verlauf (qty/unit seit 01.08.2026).
 - `stats(name, emo, buys, last_buy)` – Kauf-Häufigkeit pro Produkt (Schritt 4). Nur für Mitglieder (RLS). Wird per Funktion `bump_stat(p_name, p_emo)` bei jedem Abhaken atomar +1 gezählt; Basis für „⭐ Oft gekauft". SQL: `supabase/stats.sql`.
 - Realtime-Publication auf `items` + `history` + `stats` aktiviert.
 

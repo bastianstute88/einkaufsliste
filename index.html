@@ -116,6 +116,8 @@
   .hist-name{font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .hist-meta{font-size:12px;color:var(--muted);margin-top:1px;display:flex;align-items:center;gap:5px}
   .hist-readd{font-size:12px;color:var(--green);flex:0 0 auto;font-weight:800}
+  .hist-qty{font-size:12px;font-weight:800;color:var(--green-dark);background:var(--green-soft);
+    border-radius:10px;padding:1px 8px;margin-left:4px;white-space:nowrap}
   .hist-empty{color:var(--muted);text-align:center;padding:26px 10px}
   .who-badge{display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;
     font-size:10px;font-weight:800;color:#fff;overflow:hidden;flex:0 0 auto}
@@ -623,7 +625,7 @@ function renderAvatars(){
 
 /* ---------- Aktionen (optimistisch + Supabase) ---------- */
 function logHistLocal(it, action){
-  const h = { id:uuid(), name:it.name, emo:it.emo, action,
+  const h = { id:uuid(), name:it.name, emo:it.emo, action, qty:it.qty??null, unit:it.unit??null,
               who: me?.id||null, who_name: me?.name||null, who_avatar: me?.avatar||null, t:Date.now() };
   state.history.unshift(h);
   if(state.history.length>200) state.history.length=200;
@@ -636,7 +638,7 @@ async function addItem(name, emo, qty=null, unit=null){
   render(); if(historyOpen) renderHistory();
   try{
     await sb.from("items").insert({ id:it.id, name:it.name, emo:it.emo, qty:it.qty, unit:it.unit, created_by: me?.id||null });
-    await sb.from("history").insert({ id:h.id, name:h.name, emo:h.emo, action:"add", who:h.who, who_name:h.who_name, who_avatar:h.who_avatar });
+    await sb.from("history").insert({ id:h.id, name:h.name, emo:h.emo, action:"add", qty:h.qty, unit:h.unit, who:h.who, who_name:h.who_name, who_avatar:h.who_avatar });
   }catch(e){ flagSync(false); }
 }
 async function buyItem(id){
@@ -646,7 +648,7 @@ async function buyItem(id){
   state.items = state.items.filter(i=>i.id!==id);
   render(); if(historyOpen) renderHistory();
   try{
-    await sb.from("history").insert({ id:h.id, name:h.name, emo:h.emo, action:"buy", who:h.who, who_name:h.who_name, who_avatar:h.who_avatar });
+    await sb.from("history").insert({ id:h.id, name:h.name, emo:h.emo, action:"buy", qty:h.qty, unit:h.unit, who:h.who, who_name:h.who_name, who_avatar:h.who_avatar });
     await sb.from("items").delete().eq("id", id);
   }catch(e){ flagSync(false); }
   // eigener Zähler in Supabase (Fehler egal, z. B. falls Tabelle noch nicht angelegt)
@@ -957,7 +959,7 @@ async function clearActiveList(){
   if(!toClear.length) return;
   const ids=toClear.map(i=>i.id);
   const rows=toClear.map(it=>{ const h=logHistLocal(it,"buy");
-    return {id:h.id,name:h.name,emo:h.emo,action:"buy",who:h.who,who_name:h.who_name,who_avatar:h.who_avatar}; });
+    return {id:h.id,name:h.name,emo:h.emo,action:"buy",qty:h.qty,unit:h.unit,who:h.who,who_name:h.who_name,who_avatar:h.who_avatar}; });
   state.items=state.items.filter(i=>SECTIONS.includes(i.unit));
   armedId=null; render(); if(historyOpen) renderHistory();
   try{
@@ -991,11 +993,12 @@ function renderHistory(){
   const h=state.history;
   $("#histList").innerHTML = h.length ? h.map((e,i)=>{
     const badge = whoBadge(e);
+    const q = qtyLabel(e);
     return `
     <div class="hist-row" data-hist="${i}">
       <span class="hist-emo">${e.emo}</span>
       <div class="hist-main">
-        <div class="hist-name">${esc(e.name)}</div>
+        <div class="hist-name">${esc(e.name)}${q?` <span class="hist-qty">${esc(q)}</span>`:""}</div>
         <div class="hist-meta">${e.action==="buy"?"🛒 gekauft":"➕ draufgesetzt"} · ${badge}<span>${relTime(e.t)}</span></div>
       </div>
       <span class="hist-readd">+ dazu</span>
@@ -1011,7 +1014,7 @@ $("#histClear").onclick=async ()=>{
 $("#histList").onclick=e=>{
   const row=e.target.closest("[data-hist]"); if(!row) return;
   const ev=state.history[+row.getAttribute("data-hist")];
-  if(ev){ addItem(ev.name, ev.emo); closeSheet(); }
+  if(ev){ addItem(ev.name, ev.emo, ev.qty ?? null, ev.unit ?? null); closeSheet(); }
 };
 
 /* ---------- Auth-Gate ---------- */
@@ -1042,7 +1045,7 @@ function flagSync(on){
 
 /* ---------- Daten laden + Realtime ---------- */
 function rowToItem(r){ return { id:r.id, name:r.name, emo:r.emo||emoFor(r.name), qty:(r.qty==null?null:Number(r.qty)), unit:r.unit||null }; }
-function rowToHist(r){ return { id:r.id, name:r.name, emo:r.emo, action:r.action, who:r.who, who_name:r.who_name, who_avatar:r.who_avatar, t:new Date(r.created_at).getTime() }; }
+function rowToHist(r){ return { id:r.id, name:r.name, emo:r.emo, action:r.action, qty:(r.qty==null?null:Number(r.qty)), unit:r.unit||null, who:r.who, who_name:r.who_name, who_avatar:r.who_avatar, t:new Date(r.created_at).getTime() }; }
 
 async function initData(){
   const [{ data:items }, { data:hist }, { data:profs }] = await Promise.all([
