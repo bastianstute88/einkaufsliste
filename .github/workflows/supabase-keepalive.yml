@@ -1,0 +1,48 @@
+name: Supabase wachhalten
+
+# Supabase pausiert Free-Projekte nach 7 Tagen ohne Aktivität.
+# Dieser Job schickt alle 3 Tage eine Mini-Anfrage an die Datenbank
+# und schreibt danach einen Zeitstempel ins Repo – Letzteres verhindert,
+# dass GitHub den Zeitplan nach 60 Tagen Repo-Stille selbst abschaltet.
+
+on:
+  schedule:
+    - cron: "17 6 */3 * *"   # alle 3 Tage, 6:17 UTC
+  workflow_dispatch:          # + Knopf zum manuellen Auslösen
+
+permissions:
+  contents: write
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Supabase anpingen
+        env:
+          SUPABASE_URL: https://ynkvoujaqqoslbzslbvb.supabase.co
+          # publishable Key – steht ohnehin öffentlich im Frontend (index.html)
+          SUPABASE_KEY: sb_publishable_d1Lx7UkGxOdll7MxgEu7WA_n5nzJU-7
+        run: |
+          code=$(curl -s -o /tmp/out.txt -w "%{http_code}" \
+            "$SUPABASE_URL/rest/v1/items?select=id&limit=1" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_KEY")
+          echo "HTTP $code"
+          cat /tmp/out.txt
+          # 200 = ok, 401/403 = RLS blockt (Anfrage zählt trotzdem als Aktivität).
+          # Nur echte Ausfälle (5xx / 000) sollen den Job rot machen.
+          case "$code" in
+            2*|401|403) exit 0 ;;
+            *) echo "Unerwartete Antwort – Projekt evtl. pausiert!"; exit 1 ;;
+          esac
+
+      - name: Zeitstempel committen
+        run: |
+          date -u +"%Y-%m-%dT%H:%M:%SZ" > .keepalive
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .keepalive
+          git diff --staged --quiet || git commit -m "keepalive: Supabase angepingt"
+          git push
