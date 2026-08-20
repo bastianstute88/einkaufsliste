@@ -163,9 +163,10 @@ git push origin main
 
 **Keepalive – Supabase vor dem Auto-Pausieren schützen (20.08.2026):**
 - **Warum:** Supabase pausiert Projekte im Free-Tarif nach **7 Tagen ohne API-Aktivität** (Warnmail kommt schon vorher). Bei nur einem Wocheneinkauf zu zweit liegt die echte Nutzung genau auf dieser Kante – ein Urlaub oder ein verschobener Einkaufstag reicht zum Pausieren.
-- **Lösung:** GitHub Action `.github/workflows/supabase-keepalive.yml` – läuft per Cron **alle 3 Tage** (6:17 UTC) und ist zusätzlich per `workflow_dispatch` manuell startbar (GitHub → Actions → „Supabase wachhalten" → Run workflow).
-  1. `curl` auf `/rest/v1/items?select=id&limit=1` mit dem publishable Key → zählt bei Supabase als Aktivität.
-  2. Schreibt danach einen Zeitstempel in `.keepalive` und committet ihn – **nötig**, weil GitHub geplante Workflows in Repos ohne Commits nach 60 Tagen von selbst abschaltet. Nebeneffekt: alle 3 Tage ein Bot-Commit + Pages-Rebuild (harmlos, aber beim `git pull` mitziehen).
+- **Lösung:** GitHub Action `.github/workflows/supabase-keepalive.yml` – läuft per Cron **täglich** um 6:17 UTC und ist zusätzlich per `workflow_dispatch` manuell startbar (GitHub → Actions → „Supabase wachhalten" → Run workflow). Zwei bewusst **entkoppelte** Aufgaben:
+  1. **Ping (täglich):** `curl` auf `/rest/v1/items?select=id&limit=1` mit dem publishable Key → zählt bei Supabase als Aktivität. Täglich statt alle 3 Tage, weil GitHub geplante Läufe bei hoher Last verzögern oder **ganz überspringen** darf; so überleben wir mehrere Ausfälle am Stück, ohne die 7-Tage-Grenze zu reißen. Die 6:17 (nicht zur vollen Stunde) meidet die Lastspitze.
+  2. **Zeitstempel-Commit (nur ~1×/Monat):** `.keepalive` wird nur neu geschrieben und committet, wenn er älter als `COMMIT_ALLE_TAGE` (=20) ist. Zweck ist allein die **60-Tage-Regel** (GitHub schaltet Cron-Workflows in Repos ohne Aktivität ab) – dafür reicht ein Commit im Monat, und es spart tägliche Bot-Commits samt Pages-Rebuilds.
+  - Merke: Ping-Frequenz und Commit-Frequenz sind getrennt einstellbar (Cron ↔ `COMMIT_ALLE_TAGE`). Beim `git pull` gelegentlich einen Bot-Commit mitziehen.
 - **Fehlerlogik:** `2xx` und `401/403` (RLS blockt anonym – Anfrage zählt trotzdem) gelten als **ok**; nur echte Ausfälle (5xx / keine Antwort) machen den Job rot. Eine Fehlschlag-Mail von GitHub ist also das echte Warnsignal.
 - **Der Key im Workflow ist der publishable Key** – steht ohnehin öffentlich in `index.html`, kein Secret nötig.
 - **Stolperstein beim Pushen:** Dateien unter `.github/workflows/` brauchen den `workflow`-Scope. Falls `git push` mit *„refusing to allow an OAuth App to create or update workflow"* abbricht: einmalig `gh auth refresh -h github.com -s workflow` ausführen (Geräte-Code im Browser bestätigen), dann erneut pushen.
@@ -201,7 +202,7 @@ git push origin main
 | PWA-Dateien | `manifest.json`, `sw.js`, `icon.svg` |
 | Edge Function | `supabase/functions/recipe-import/index.ts` (Rezept-Import) |
 | Statistik | Tabelle `stats` + Funktion `bump_stat` (SQL: `supabase/stats.sql`) – „⭐ Oft gekauft" |
-| Keepalive | GitHub Action `.github/workflows/supabase-keepalive.yml` – pingt alle 3 Tage die DB an (Free-Tarif pausiert nach 7 Tagen Inaktivität) |
+| Keepalive | GitHub Action `.github/workflows/supabase-keepalive.yml` – pingt täglich die DB an (Free-Tarif pausiert nach 7 Tagen Inaktivität), Bot-Commit nur ~1×/Monat |
 | GitHub | `bastianstute88/einkaufsliste` (public) |
 | Live | https://bastianstute88.github.io/einkaufsliste/ |
 | Cache | `localStorage`, Key `einkauf_supabase_v1` (nur Cache) |

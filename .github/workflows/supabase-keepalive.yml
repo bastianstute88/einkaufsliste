@@ -1,17 +1,25 @@
 name: Supabase wachhalten
 
 # Supabase pausiert Free-Projekte nach 7 Tagen ohne Aktivität.
-# Dieser Job schickt alle 3 Tage eine Mini-Anfrage an die Datenbank
-# und schreibt danach einen Zeitstempel ins Repo – Letzteres verhindert,
-# dass GitHub den Zeitplan nach 60 Tagen Repo-Stille selbst abschaltet.
+# Deshalb: TÄGLICH eine Mini-Anfrage an die Datenbank. Täglich statt alle 3 Tage,
+# weil GitHub geplante Läufe bei hoher Last verzögern oder ganz überspringen darf –
+# so verkraften wir mehrere Ausfälle hintereinander, ohne die 7-Tage-Grenze zu reißen.
+#
+# Der Zeitstempel-Commit dagegen passiert nur ca. 1x im Monat (siehe COMMIT_ALLE_TAGE).
+# Er hält den Zeitplan am Leben, weil GitHub Cron-Workflows nach 60 Tagen ohne
+# Repo-Aktivität abschaltet – dafür reicht ein Commit im Monat locker, und es
+# spart die täglichen Bot-Commits samt GitHub-Pages-Rebuilds.
 
 on:
   schedule:
-    - cron: "17 6 */3 * *"   # alle 3 Tage, 6:17 UTC
-  workflow_dispatch:          # + Knopf zum manuellen Auslösen
+    - cron: "17 6 * * *"   # täglich 6:17 UTC (nicht zur vollen Stunde – da ist GitHub am vollsten)
+  workflow_dispatch:        # + Knopf zum manuellen Auslösen
 
 permissions:
   contents: write
+
+env:
+  COMMIT_ALLE_TAGE: 20      # Zeitstempel nur committen, wenn er älter als so viele Tage ist
 
 jobs:
   ping:
@@ -38,11 +46,24 @@ jobs:
             *) echo "Unerwartete Antwort – Projekt evtl. pausiert!"; exit 1 ;;
           esac
 
-      - name: Zeitstempel committen
+      - name: Zeitstempel committen (nur wenn überfällig)
         run: |
+          jetzt=$(date -u +%s)
+          alt=0
+          if [ -s .keepalive ]; then
+            alt=$(date -u -d "$(cat .keepalive)" +%s 2>/dev/null || echo 0)
+          fi
+          tage=$(( (jetzt - alt) / 86400 ))
+          echo "Zeitstempel ist $tage Tage alt (Schwelle: $COMMIT_ALLE_TAGE)."
+
+          if [ "$tage" -lt "$COMMIT_ALLE_TAGE" ]; then
+            echo "Noch frisch genug – kein Commit nötig."
+            exit 0
+          fi
+
           date -u +"%Y-%m-%dT%H:%M:%SZ" > .keepalive
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add .keepalive
-          git diff --staged --quiet || git commit -m "keepalive: Supabase angepingt"
+          git diff --staged --quiet || git commit -m "keepalive: Zeitplan am Leben halten"
           git push
