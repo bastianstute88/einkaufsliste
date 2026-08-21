@@ -122,6 +122,11 @@ Zentrale Konstanten: `CATALOG` (Kategorien+Emoji+Name), `UNITS = ["g","kg","ml",
 
 **Kachel-Text**: lange Namen werden per JS (`fitText`) verkleinert statt umgebrochen (Untergrenze 9 px).
 
+**Emoji-Raten (`emoFor`)** – warum früher so viele 🛒-Karren auftauchten: der Fallback greift, sobald ein Name nicht *exakt* im Katalog steht. Beim Tippen über die Suche wurde sogar fest `"🛒"` gesetzt, ohne überhaupt nachzusehen (deshalb hatte selbst „Brot" einen Karren, obwohl 🍞 im Katalog liegt). Jetzt sucht **eine** Funktion in dieser Reihenfolge: exakter Katalog-Treffer → exaktes Stichwort aus `EMO_WORDS` → Stichwort als Teiltreffer (ab 4 Zeichen, **längere Stichwörter zuerst**, damit „hafermilch" 🥛 schlägt statt nur „milch") → Katalogname als Teiltreffer in **beide** Richtungen (fängt Einzahl/Mehrzahl: „Banane" ↔ „Bananen") → erst dann 🛒.
+- `EMO_WORDS` ist die Erweiterungsliste für alles außerhalb des Katalogs (Milchalternativen, Wurstsorten, Aufstriche, Drogerie …). Neue Wünsche einfach dort in die passende Emoji-Zeile eintragen – der Katalog selbst muss nicht wachsen.
+- `guessEmo` (Rezept-Import) ist nur noch ein Alias auf `emoFor` – vorher waren es zwei leicht verschiedene Rate-Funktionen.
+- `showEmo(emo, name)` bessert beim **Anzeigen** nach: steht bei einem Artikel noch der alte 🛒 in der Datenbank, wird live neu geraten. Dadurch sehen bestehende Listen/Verlauf/⭐-Kacheln sofort richtig aus, ohne dass etwas in Supabase umgeschrieben werden muss.
+
 ---
 
 ## 5. Bewusste Design-Entscheidungen (Bastians Vorlieben)

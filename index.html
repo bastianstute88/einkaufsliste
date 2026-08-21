@@ -461,6 +461,61 @@ const CATALOG = [
   ]]
 ];
 
+/* Zusatz-Stichwörter fürs Emoji-Raten – alles, was NICHT im Katalog steht.
+   Teiltreffer ab 4 Zeichen; längere Stichwörter gewinnen ("hafermilch" schlägt "milch"). */
+const EMO_WORDS = [
+  ["🥛", ["hafermilch","sojamilch","mandelmilch","reismilch","dinkelmilch","buttermilch","pflanzendrink",
+          "haferdrink","sojadrink","kefir","ayran","molke","kondensmilch"]],
+  ["🧀", ["halloumi","ricotta","hüttenkäse","harzer","brie","camembert","raclette","burrata","mascarpone","käse"]],
+  ["🌭", ["wurst","salami","schinken","mortadella","bratwurst","leberkäse","chorizo","cabanossi","lyoner"]],
+  ["🥓", ["bacon","pancetta"]],
+  ["🌱", ["tofu","seitan","tempeh","veggie","vegan","sojagranulat","sojaschnetzel"]],
+  ["🥣", ["hummus","tzatziki","guacamole","porridge","granola","overnight","kräuterquark","dip"]],
+  ["🫘", ["kidneybohnen","edamame","sojabohnen"]],
+  ["🌴", ["dattel"]],
+  ["🍇", ["rosinen","sultaninen"]],
+  ["🥜", ["mandeln","walnüsse","cashew","haselnuss","pistazien","studentenfutter","erdnüsse"]],
+  ["🌾", ["couscous","bulgur","quinoa","grieß","polenta","chiasamen","leinsamen","sonnenblumenkerne","kürbiskerne","haferkleie"]],
+  ["🫓", ["wraps","tortilla","pita","naan","tacoschale","fladen"]],
+  ["🥬", ["spinat","rucola","lauch","porree","sellerie","kohlrabi","rotkohl","weißkohl","wirsing","fenchel","mangold","rote bete","radieschen","pak choi"]],
+  ["🥦", ["blumenkohl","rosenkohl"]],
+  ["🥒", ["zucchini"]],
+  ["🍄", ["pilze","kräuterseitlinge","austernpilze"]],
+  ["🫒", ["oliven","rapsöl","sonnenblumenöl","sesamöl"]],
+  ["🌿", ["petersilie","basilikum","schnittlauch","koriander","minze","rosmarin","thymian","oregano","pesto","dill"]],
+  ["🍋", ["limette"]],
+  ["🍎", ["apfel"]],
+  ["🍑", ["nektarine","aprikose","pflaume","zwetschge"]],
+  ["🫐", ["himbeeren","brombeeren","johannisbeeren","beeren","cranberries"]],
+  ["🥫", ["ketchup","mayonnaise","remoulade","dressing","senf","sauce","soße","brühe","tomatenmark","apfelmus"]],
+  ["🫙", ["tahini","gewürz","curry","kurkuma","zimt","vanille","muskat","kreuzkümmel","stärke","natron"]],
+  ["🍫", ["müsliriegel","proteinriegel","schokoriegel","pralinen"]],
+  ["🍬", ["kaugummi","lakritz"]],
+  ["🥤", ["smoothie","energydrink","iso-drink","mineralwasser"]],
+  ["🥃", ["wodka","whisky","likör","schnaps","aperol","gin"]],
+  ["🍣", ["sushi"]],
+  ["🍤", ["surimi","scampi"]],
+  ["🐟", ["forelle","kabeljau","seelachs","dorade","hering","matjes","makrele"]],
+  ["🍖", ["lammfleisch","schweinefleisch","braten","spareribs"]],
+  ["🍗", ["hähnchenschenkel","chicken","ente"]],
+  ["🍚", ["milchreis","risotto","basmati"]],
+  ["🍝", ["tagliatelle","penne","fusilli","lasagne","tortellini","gnocchi"]],
+  ["🧻", ["toilettenpapier","taschentücher","servietten","feuchttücher","tempo","küchentücher"]],
+  ["🧼", ["spülmaschinentabs","geschirrspültabs","klarspüler","seife","spüli"]],
+  ["🧺", ["weichspüler","waschpulver","fleckenentferner"]],
+  ["🧴", ["reiniger","putzmittel","deo","creme","bodylotion","sonnencreme","spülung","haarshampoo","desinfektion"]],
+  ["🪥", ["zahnbürste","zahnseide","mundspülung"]],
+  ["💊", ["tabletten","medikament","vitamine","magnesium","ibuprofen","paracetamol"]],
+  ["🧷", ["windeln"]],
+  ["💡", ["glühbirne","leuchtmittel"]],
+  ["💐", ["blumen","strauß"]],
+  ["🎁", ["geschenk"]],
+  ["📦", ["alufolie","frischhaltefolie","backpapier","gefrierbeutel","brotdose"]],
+  ["🐱", ["katzenstreu"]]
+];
+// flach + längste Stichwörter zuerst, damit das speziellere Wort gewinnt
+const EMO_FLAT = EMO_WORDS.flatMap(([e,ws])=>ws.map(w=>[w,e])).sort((a,b)=>b[0].length-a[0].length);
+
 /* ---------- Konstanten ---------- */
 const UNITS = ["g","kg","ml","l"];                  // echte Mengeneinheiten
 const TAGS  = [["Tiefkühl","❄️"],["Vorrat","📦"],["Sonstiges","🛍️"],["Event","🎁"]]; // Marker statt Menge
@@ -496,10 +551,22 @@ function saveCache(){ localStorage.setItem(KEY, JSON.stringify({items:state.item
 
 /* ---------- Helpers ---------- */
 const $ = s => document.querySelector(s);
+/* Emoji zu einem Namen finden – in dieser Reihenfolge:
+   1) exakt im Katalog  2) exaktes Stichwort  3) Stichwort als Teiltreffer
+   4) Katalogname als Teiltreffer (beide Richtungen, fängt Einzahl/Mehrzahl)  5) 🛒 */
 function emoFor(name){
-  for(const [,items] of CATALOG){ for(const [emo,n] of items){ if(n===name) return emo; } }
+  const base=(name||"").split("(")[0].split(",")[0].trim().toLowerCase();
+  if(!base) return "🛒";
+  for(const [,items] of CATALOG){ for(const [emo,n] of items){ if(n.toLowerCase()===base) return emo; } }
+  for(const [w,e] of EMO_FLAT){ if(w===base) return e; }
+  for(const [w,e] of EMO_FLAT){ if(w.length>=4 && base.includes(w)) return e; }
+  for(const [,items] of CATALOG){ for(const [emo,n] of items){
+    const ln=n.toLowerCase();
+    if(ln.length>=4 && (base.includes(ln) || ln.includes(base))) return emo;
+  } }
   return "🛒";
 }
+const guessEmo = emoFor;   // gleicher Mechanismus für den Rezept-Import
 function qtyLabel(it){
   if(SECTIONS.includes(it.unit)) return "";                  // eigener Bereich zeigt es schon
   if(it.unit==="Tiefkühl") return it.qty==null ? "❄️" : "❄️ "+it.qty;
@@ -576,17 +643,20 @@ function fitText(el){
 }
 function fitAll(){ document.querySelectorAll(".nm").forEach(fitText); }
 
+// gespeicherte 🛒 (aus der Zeit vor dem besseren Raten) beim Anzeigen nachbessern
+function showEmo(emo, name){ return (emo && emo!=="🛒") ? emo : emoFor(name); }
 function tileHTML(it){
   const q = qtyLabel(it);
   const armed = it.id===armedId;
   return `<div class="tile${armed?' armed':''}" data-id="${it.id}">
     ${q? `<span class="qty">${q}</span>`:""}
     ${armed? `<span class="armed-check">✓</span>`:""}
-    <span class="emo">${it.emo}</span><span class="nm">${esc(it.name)}</span></div>`;
+    <span class="emo">${showEmo(it.emo, it.name)}</span><span class="nm">${esc(it.name)}</span></div>`;
 }
 // Katalog-/Vorschlags-Kachel (Antippen = draufsetzen)
 function catTileHTML(emo, n, fav){
   const cnt = state.items.filter(i=>i.name===n).length;
+  emo = showEmo(emo, n);
   return `<div class="tile" data-cat="${esc(n)}" data-emo="${esc(emo)}"${fav?' data-fav="1"':''}>
     ${cnt? `<span class="qty">${cnt}×</span>`:""}
     <span class="emo">${emo}</span><span class="nm">${esc(n)}</span></div>`;
@@ -805,7 +875,7 @@ function commitCustom(){
   }
   const name=v.charAt(0).toUpperCase()+v.slice(1);
   searchEl.value=""; $("#addHint").classList.remove("show"); render();
-  openAdd(name, "🛒");
+  openAdd(name, emoFor(name));      // nicht stur 🛒 – erst raten lassen
 }
 $("#addHint").onclick=commitCustom;
 searchEl.addEventListener("keydown",e=>{ if(e.key==="Enter") commitCustom(); });
@@ -868,16 +938,7 @@ function recRoundReal(n,unit){
 }
 function fmtQty(n){ return n==null? "" : String(Math.round(n*100)/100).replace(".",","); }
 
-// Emoji raten: Basis-Nomen gegen den Katalog matchen, sonst 🛒
-function guessEmo(name){
-  const base=(name||"").split("(")[0].split(",")[0].trim().toLowerCase();
-  if(!base) return "🛒";
-  for(const [,items] of CATALOG){ for(const [emo,n] of items){ if(base===n.toLowerCase()) return emo; } }
-  for(const [,items] of CATALOG){ for(const [emo,n] of items){
-    const ln=n.toLowerCase(); if(ln.length>=4 && base.includes(ln)) return emo;
-  } }
-  return "🛒";
-}
+// (Emoji-Raten: siehe emoFor/guessEmo weiter oben)
 
 // Parsed-Zutat + Faktor -> App-Modell {name, qty, unit, emo}
 function recToItem(p, factor){
@@ -1047,7 +1108,7 @@ function renderHistory(){
     const q = qtyLabel(e);
     return `
     <div class="hist-row" data-hist="${i}">
-      <span class="hist-emo">${e.emo}</span>
+      <span class="hist-emo">${showEmo(e.emo, e.name)}</span>
       <div class="hist-main">
         <div class="hist-name">${esc(e.name)}${q?` <span class="hist-qty">${esc(q)}</span>`:""}</div>
         <div class="hist-meta">${e.action==="buy"?"🛒 gekauft":"➕ draufgesetzt"} · ${badge}<span>${relTime(e.t)}</span></div>
