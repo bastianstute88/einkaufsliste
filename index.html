@@ -81,8 +81,11 @@
     background:var(--card);border-radius:18px;padding:12px 6px 10px;text-align:center;
     box-shadow:var(--shadow);position:relative;cursor:pointer;border:2px solid transparent;
     transition:transform .08s ease, border-color .15s ease;user-select:none;
+    -webkit-user-select:none;-webkit-touch-callout:none;
   }
   .tile:active{transform:scale(.94)}
+  /* ⭐-Kachel lange gedrückt halten = aus "Oft gekauft" entfernen */
+  .tile.fav-hold{transform:scale(.9);border-color:#b23b3b;opacity:.6}
   .tile .emo{font-size:30px;line-height:1;display:block;margin:4px 0 6px}
   .tile .nm{font-size:12.5px;font-weight:600;line-height:1.15;color:var(--ink);
     display:block;width:100%;height:29px;overflow:hidden}
@@ -545,7 +548,7 @@ function render(){
   const often = topOften(16).filter(s=> !q || s.name.toLowerCase().includes(q));
   if(often.length){
     html += `<div class="cat-h fav"><span>⭐ Oft gekauft</span></div>
-      <div class="grid">${often.map(s=>catTileHTML(s.emo||emoFor(s.name), s.name)).join("")}</div>`;
+      <div class="grid">${often.map(s=>catTileHTML(s.emo||emoFor(s.name), s.name, true)).join("")}</div>`;
   }
   // Katalog – einklappbare Kategorien (beim Suchen immer aufgeklappt)
   html += CATALOG.map(([cat,items])=>{
@@ -582,9 +585,9 @@ function tileHTML(it){
     <span class="emo">${it.emo}</span><span class="nm">${esc(it.name)}</span></div>`;
 }
 // Katalog-/Vorschlags-Kachel (Antippen = draufsetzen)
-function catTileHTML(emo, n){
+function catTileHTML(emo, n, fav){
   const cnt = state.items.filter(i=>i.name===n).length;
-  return `<div class="tile" data-cat="${esc(n)}" data-emo="${esc(emo)}">
+  return `<div class="tile" data-cat="${esc(n)}" data-emo="${esc(emo)}"${fav?' data-fav="1"':''}>
     ${cnt? `<span class="qty">${cnt}×</span>`:""}
     <span class="emo">${emo}</span><span class="nm">${esc(n)}</span></div>`;
 }
@@ -658,6 +661,7 @@ async function buyItem(id){
 /* ---------- Tap handling ---------- */
 let armedId = null;
 document.addEventListener("click", e=>{
+  if(swallowClick){ swallowClick=false; e.preventDefault(); e.stopPropagation(); return; }
   const catToggle = e.target.closest("[data-cat-toggle]");
   if(catToggle){
     const c = catToggle.getAttribute("data-cat-toggle");
@@ -682,6 +686,46 @@ document.addEventListener("click", e=>{
   }
   if(armedId!=null){ armedId=null; render(); }
 });
+
+/* ---------- ⭐-Kachel lange drücken = aus "Oft gekauft" werfen ---------- */
+const FAV_HOLD_MS = 600;
+let favTimer=null, favTile=null, favStart=null, swallowClick=false;
+function favHoldCancel(){
+  if(favTimer){ clearTimeout(favTimer); favTimer=null; }
+  if(favTile){ favTile.classList.remove("fav-hold"); favTile=null; }
+  favStart=null;
+}
+$("#catalog").addEventListener("pointerdown", e=>{
+  const t = e.target.closest('.tile[data-fav]'); if(!t) return;
+  favHoldCancel();
+  favTile=t; favStart={x:e.clientX,y:e.clientY};
+  t.classList.add("fav-hold");
+  favTimer = setTimeout(()=>{
+    const name = favTile && favTile.getAttribute("data-cat");
+    favHoldCancel();
+    swallowClick=true;                       // der folgende Tap darf nichts mehr auslösen
+    setTimeout(()=>{ swallowClick=false; }, 800);   // Sicherheitsnetz, falls kein Click kommt
+    removeFav(name);
+  }, FAV_HOLD_MS);
+});
+$("#catalog").addEventListener("pointermove", e=>{
+  if(!favStart) return;
+  if(Math.abs(e.clientX-favStart.x)>10 || Math.abs(e.clientY-favStart.y)>10) favHoldCancel();  // Scrollen bricht ab
+});
+["pointerup","pointercancel","pointerleave"].forEach(ev=> $("#catalog").addEventListener(ev, favHoldCancel));
+window.addEventListener("scroll", favHoldCancel, {passive:true});
+
+async function removeFav(name){
+  if(!name) return;
+  if(!confirm(`„${name}" aus ⭐ Oft gekauft entfernen?`)) return;
+  delete statsMap[name];
+  render();
+  try{
+    // Löschen, falls die DB es erlaubt – sonst Zähler auf 0 zurücksetzen (fällt aus der Liste)
+    const { data } = await sb.from("stats").delete().eq("name", name).select();
+    if(!data || !data.length) await sb.from("stats").update({ buys:0, last_buy:null }).eq("name", name);
+  }catch(e){ flagSync(false); }
+}
 
 /* ---------- Mengen-Menü ---------- */
 let pending=null, tmp={qty:null,unit:null};
@@ -743,15 +787,22 @@ $("#sheetBg").onclick=closeSheet;
 
 /* ---------- Search / custom add ---------- */
 const searchEl=$("#search");
+const isLink=v=>/^(https?:\/\/|www\.)\S+$/i.test(v);
 searchEl.addEventListener("input",()=>{
   const v=searchEl.value.trim();
   const known=CATALOG.some(([,items])=>items.some(([,n])=>n.toLowerCase()===v.toLowerCase()));
+  $("#addHint").textContent = isLink(v) ? "🍳 Rezept importieren" : "Hinzufügen";
   $("#addHint").classList.toggle("show", v.length>0 && !known);
   render();
 });
 function commitCustom(){
   const v=searchEl.value.trim();
   if(!v) return;
+  if(isLink(v)){                       // Link gehört nicht auf die Liste, sondern in den Rezept-Import
+    searchEl.value=""; $("#addHint").classList.remove("show"); render();
+    openRecipeSheet(/^https?:/i.test(v) ? v : "https://"+v);
+    return;
+  }
   const name=v.charAt(0).toUpperCase()+v.slice(1);
   searchEl.value=""; $("#addHint").classList.remove("show"); render();
   openAdd(name, "🛒");

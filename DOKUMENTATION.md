@@ -80,6 +80,7 @@ Zentrale Konstanten: `CATALOG` (Kategorien+Emoji+Name), `UNITS = ["g","kg","ml",
 
 **Draufsetzen**
 - Produkt im Katalog (oder eigenes über die Suche) antippen → **Mengen-Menü**. Menge/Einheit wählen ODER „Übernehmen" (= ohne Menge). Menü startet auf „ohne".
+- **Link im Suchfeld** (`https://…` oder `www.…`): wird **nicht** als Artikel angelegt – der Hinzufügen-Knopf heißt dann „🍳 Rezept importieren" und Enter/Tippen öffnet direkt den Rezept-Import mit der URL. (Vorher landete ein eingefügter Rezept-Link als Artikel „Https://www.chefkoch.de/…" auf der Liste und nach zweimaligem Abhaken sogar unter „⭐ Oft gekauft".)
 
 **Abhaken (Artikel schon auf der Liste)** – Zwei-Druck-Prinzip:
 - **1. Druck** → Artikel wird **ausgegraut** + Häkchen. **2. Druck** → **weg** (wandert in den Verlauf = Undo). Woanders tippen hebt die Auswahl auf.
@@ -108,6 +109,7 @@ Zentrale Konstanten: `CATALOG` (Kategorien+Emoji+Name), `UNITS = ["g","kg","ml",
 - **Kategorien einklappbar**: Überschrift (z. B. „🍎 Obst & Gemüse") antippen = auf/zu; rechts steht die Anzahl. **Standard: alle zu** (aufgeräumt). Zustand wird pro Kategorie in `localStorage` gemerkt (Key `einkauf_collapsed_v1`). Beim **Suchen** werden passende Kategorien automatisch aufgeklappt.
 - **⭐ Oft gekauft** (ganz oben): nach Häufigkeit sortiert – je öfter ein Artikel den Kreis *draufsetzen → abhaken* macht, desto weiter oben (bei Gleichstand kommt das zuletzt Gekaufte zuerst). Top 16.
   - **Anzeige-Filter** (Konstanten oben im JS): nur Artikel mit **mind. `OFT_MIN`=2 Käufen** (kein Einmal-Rauschen) **und** zuletzt gekauft innerhalb der letzten **`OFT_TAGE`=14 Tage** (Ruht ein Artikel 14 Tage, verschwindet er aus der Anzeige). **Der Zähler `buys` bleibt erhalten** – kauft man das Ding wieder, ist es mit seiner alten Häufigkeit sofort zurück. Nichts wird gelöscht, nur aus-/eingeblendet. Beide Zahlen leicht änderbar.
+  - **Rauswerfen: ⭐-Kachel ~0,6 s gedrückt halten** → sie wird rot/klein, Sicherheitsfrage, dann weg (für Tippfehler oder Blödsinn, der versehentlich zweimal abgehakt wurde). Scrollen/Wegrutschen (>10 px) bricht ab; der Tap danach wird geschluckt, damit sich nicht das Mengen-Menü öffnet. Gilt **nur** für ⭐-Kacheln (`data-fav`), nicht für den normalen Katalog. Technisch: `sb.from("stats").delete()` – falls die DB das (noch) nicht erlaubt, setzt die App als Fallback `buys=0, last_buy=null`, wodurch die Kachel genauso verschwindet. Für echtes Löschen einmalig `supabase/stats_delete.sql` im SQL Editor ausführen (fügt die fehlende DELETE-Policy hinzu).
 - *„Zuletzt gekauft" wurde bewusst weggelassen:* Recency deckt der **Verlauf 🕘** schon ab (letzter Eintrag antippen = wieder drauf), und beide Listen überschnitten sich zu stark.
 - Datenquelle: Supabase-Tabelle **`stats`** (`name, emo, buys, last_buy`). Jedes **Abhaken** ruft `rpc('bump_stat')` auf (+1, atomar). Zählt für **beide Nutzer gemeinsam** und **übersteht „Verlauf leeren"**. Das Sammel-**„Liste leeren" zählt bewusst NICHT** (Wegwerfen ≠ Kauf). Client verträgt eine noch fehlende `stats`-Tabelle (Bereich bleibt dann einfach leer).
 
