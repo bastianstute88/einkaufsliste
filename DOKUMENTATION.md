@@ -2,7 +2,10 @@
 
 Eine eigene Einkaufslisten-App (Bring-Ersatz) für Bastian und seine Frau.
 
-**Stand (zuletzt aktualisiert 01.08.2026):** **Schritt 3 + 4 fertig & live.**
+**Stand (zuletzt aktualisiert 21.08.2026):** **Schritt 3 + 4 fertig & live.**
+- **⭐-Kacheln rauswerfen (21.08.2026):** Eine Kachel unter „Oft gekauft" **~0,6 s gedrückt halten** → Sicherheitsfrage → weg. Anlass: Ein Rezept-Link war versehentlich als Artikel „Https://www.chefkoch.de/…" auf der Liste gelandet, zweimal abgehakt worden und stand dadurch dauerhaft unter „Oft gekauft", ohne dass man ihn wieder loswurde.
+- **Links landen im Rezept-Import (21.08.2026):** Steht ein `https://…` oder `www.…` im Suchfeld, wird daraus **kein** Artikel mehr – der Knopf heißt dann „🍳 Rezept importieren" und öffnet direkt den Import. Behebt die Ursache des Punkts darüber.
+- **Emoji-Raten repariert (21.08.2026):** Statt vieler 🛒-Platzhalter gibt es jetzt ein gemeinsames Rate-Verfahren mit Stichwortliste (`EMO_WORDS`) – Hafermilch 🥛, Datteln 🌴, Kefir 🥛, Wurst 🌭, Hummus 🥣 usw. Beim Tippen über die Suche wurde vorher **fest** 🛒 gesetzt, ohne überhaupt im Katalog nachzusehen. Details in Abschnitt 4.
 - **Menge frei eintippen (01.08.2026):** Im Mengen-Menü ist die große Zahl jetzt ein **Eingabefeld** mit Zahlen-Tastatur (`inputmode="decimal"`). Man tippt z. B. **600** direkt ein, statt oft **+1** zu drücken. Die **+/−**-Knöpfe bleiben für schnelle kleine Änderungen. Umgesetzt über `<input id="amount">`; `#amount.oninput` schreibt nach `tmp.qty`, `drawSheet()` überschreibt das Feld nicht, solange es fokussiert ist.
 - **Menge im Verlauf (01.08.2026):** Der Verlauf zeigt jetzt die **Menge** mit an (z. B. „🥫 Tomaten · 3", „🍖 Fleisch · 600 g"). Dafür speichert die `history` zusätzlich `qty` + `unit` (neue Spalten, siehe `supabase/history_qty.sql`), und „+ dazu" übernimmt die Menge gleich mit. **Migration nötig:** SQL aus `supabase/history_qty.sql` einmalig im Supabase-Editor ausführen.
 - **Schritt 3 – Rezept-Import ohne Foto:** Ein Rezept-Link (Chefkoch & Co.) wird eingefügt oder geteilt, die Zutaten werden **exakt** ausgelesen (aus dem `schema.org/Recipe`-Datenblock der Seite), auf die gewünschte Portionszahl umgerechnet und auf die Liste gesetzt. Kein Bild-Scan, keine KI, keine Kosten.
@@ -34,7 +37,7 @@ Eine eigene Einkaufslisten-App (Bring-Ersatz) für Bastian und seine Frau.
   - Frontend redet per Client-SDK mit Supabase; der **Publishable Key** (`sb_publishable_…`) steht im `index.html` (public-safe, durch RLS abgesichert).
   - **Login: Google OAuth** (Google-Cloud-Projekt `einkaufsliste-503918`, Freigabe-Bildschirm „In Produktion", nur Scopes email/profile → keine Warnung, kein 7-Tage-Ablauf).
   - **Zugriffsschutz (RLS)**: Nur die in Tabelle `members` hinterlegten E-Mails (Bastian + Simone) dürfen lesen/schreiben.
-  - **Live-Sync** über Supabase Realtime auf `items` + `history`.
+  - **Live-Sync** über Supabase Realtime auf `items` + `history` + `stats` (letzteres, damit ein rausgeworfener ⭐-Eintrag auch beim anderen sofort verschwindet).
   - **Edge Function `recipe-import`** (neu, Schritt 3): holt eine Rezept-URL **serverseitig** und gibt Titel + Zutaten + Basis-Portionszahl als JSON zurück. Nötig, weil der Browser fremde Seiten (chefkoch.de) wegen **CORS nicht direkt** abrufen darf. Quelle im Repo: `supabase/functions/recipe-import/index.ts`.
 - **Cache/Offline**: `localStorage` (Key `einkauf_supabase_v1`) hält die zuletzt gesehene Liste für sofortiges Bild beim Start; echte Quelle ist Supabase.
 - **Hosting**: GitHub Pages (öffentlich, weil kostenloses Pages nur bei public geht).
@@ -64,7 +67,7 @@ state = {
 - `profiles(user_id, email, name, avatar_url)` – für Mitglieder lesbar; jeder pflegt beim Login sein eigenes.
 - `items(id, name, emo, qty, unit, created_at, created_by)` – die geteilte Liste.
 - `history(id, name, emo, action, qty, unit, who, who_name, who_avatar, created_at)` – Verlauf (qty/unit seit 01.08.2026).
-- `stats(name, emo, buys, last_buy)` – Kauf-Häufigkeit pro Produkt (Schritt 4). Nur für Mitglieder (RLS). Wird per Funktion `bump_stat(p_name, p_emo)` bei jedem Abhaken atomar +1 gezählt; Basis für „⭐ Oft gekauft". SQL: `supabase/stats.sql`.
+- `stats(name, emo, buys, last_buy)` – Kauf-Häufigkeit pro Produkt (Schritt 4). Nur für Mitglieder (RLS). Wird per Funktion `bump_stat(p_name, p_emo)` bei jedem Abhaken atomar +1 gezählt; Basis für „⭐ Oft gekauft". SQL: `supabase/stats.sql`. **Achtung:** `stats.sql` legt nur select/insert/update-Policies an – **kein delete**. Fürs echte Löschen einzelner Einträge gibt es `supabase/stats_delete.sql` (optional, siehe Abschnitt 4 und 6).
 - Realtime-Publication auf `items` + `history` + `stats` aktiviert.
 
 Hinweis: Die Statistik liegt **nicht** in `state`, sondern in einer separaten Map `statsMap` (aus Tabelle `stats`).
@@ -72,7 +75,7 @@ Hinweis: Die Statistik liegt **nicht** in `state`, sondern in einer separaten Ma
 **Ein neues Mitglied hinzufügen:** im Supabase-SQL-Editor
 `insert into public.members(email, display_name) values ('neue@gmail.com','Name');`
 
-Zentrale Konstanten: `CATALOG` (Kategorien+Emoji+Name), `UNITS = ["g","kg","ml","l"]`, `TAGS` (Tiefkühl/Vorrat/Sonstiges/Event), `SECTIONS = ["Vorrat","Sonstiges","Event"]`.
+Zentrale Konstanten: `CATALOG` (Kategorien+Emoji+Name), `EMO_WORDS` (Stichwörter fürs Emoji-Raten außerhalb des Katalogs), `UNITS = ["g","kg","ml","l"]`, `TAGS` (Tiefkühl/Vorrat/Sonstiges/Event), `SECTIONS = ["Vorrat","Sonstiges","Event"]`.
 
 ---
 
@@ -138,7 +141,7 @@ Zentrale Konstanten: `CATALOG` (Kategorien+Emoji+Name), `UNITS = ["g","kg","ml",
 - **Katalog standardmäßig eingeklappt** – aufgeräumt; die häufig gebrauchten Sachen sind ja oben unter „⭐ Oft gekauft" griffbereit. Häufigkeit wird **dauerhaft** in Supabase gezählt (nicht nur aus dem Verlauf), damit sie „Verlauf leeren" übersteht und für beide zusammenzählt. **Nur „Oft gekauft", kein „Zuletzt gekauft"** – Recency deckt der Verlauf schon ab.
 - **Keine dauerhafte „Erledigt"-Liste** → stattdessen Verlauf-Button oben.
 - **Stück/Dose/Bund/Pkg entfernt** – nur echte Mengen (g/kg/ml/l) oder einfache Zahl.
-- **Icons = Emojis** (gratis; wichtig, weil beim Import beliebige Zutaten kommen – Emoji wird gegen den Katalog geraten, sonst 🛒).
+- **Icons = Emojis** (gratis; wichtig, weil beim Import und beim freien Eintippen beliebige Namen kommen). Geraten wird gegen Katalog **+ Stichwortliste `EMO_WORDS`**; 🛒 ist nur noch die letzte Notlösung. Ein echtes Icon-Set wäre möglich, ist aber bewusst offen (Punkt 5 im Fahrplan) – Emojis sind gratis, brauchen keine Dateien und decken auch Exoten ab.
 - Nur **eine** Liste → kein Dropdown-Pfeil im Titel.
 
 ---
@@ -167,6 +170,7 @@ git push origin main
 
 **Statistik-Tabelle `stats` (Supabase, Schritt 4):**
 - Einmalig die Datei `supabase/stats.sql` im **Dashboard → SQL Editor** einfügen und **Run** (legt Tabelle `stats`, RLS-Policies, Funktion `bump_stat` und Realtime an). Setzt die Funktion `is_member()` aus Schritt 2 voraus.
+- **Optional, noch offen:** `supabase/stats_delete.sql` genauso ausführen – ergänzt die fehlende **DELETE-Policy**, damit rausgeworfene ⭐-Einträge wirklich aus der Tabelle verschwinden statt nur auf `buys=0` gesetzt zu werden. Ohne den Schritt funktioniert das Rauswerfen trotzdem (Fallback), es bleiben nur Karteileichen in `stats` stehen.
 
 **Keepalive – Supabase vor dem Auto-Pausieren schützen (20.08.2026):**
 - **Warum:** Supabase pausiert Projekte im Free-Tarif nach **7 Tagen ohne API-Aktivität** (Warnmail kommt schon vorher). Bei nur einem Wocheneinkauf zu zweit liegt die echte Nutzung genau auf dieser Kante – ein Urlaub oder ein verschobener Einkaufstag reicht zum Pausieren.
@@ -174,7 +178,7 @@ git push origin main
   1. **Ping (täglich):** `curl` auf `/rest/v1/items?select=id&limit=1` mit dem publishable Key → zählt bei Supabase als Aktivität. Täglich statt alle 3 Tage, weil GitHub geplante Läufe bei hoher Last verzögern oder **ganz überspringen** darf; so überleben wir mehrere Ausfälle am Stück, ohne die 7-Tage-Grenze zu reißen. Die 6:17 (nicht zur vollen Stunde) meidet die Lastspitze.
   2. **Zeitstempel-Commit (nur ~1×/Monat):** `.keepalive` wird nur neu geschrieben und committet, wenn er älter als `COMMIT_ALLE_TAGE` (=20) ist. Zweck ist allein die **60-Tage-Regel** (GitHub schaltet Cron-Workflows in Repos ohne Aktivität ab) – dafür reicht ein Commit im Monat, und es spart tägliche Bot-Commits samt Pages-Rebuilds.
   - Merke: Ping-Frequenz und Commit-Frequenz sind getrennt einstellbar (Cron ↔ `COMMIT_ALLE_TAGE`). Beim `git pull` gelegentlich einen Bot-Commit mitziehen.
-- **Fehlerlogik:** `2xx` und `401/403` (RLS blockt anonym – Anfrage zählt trotzdem) gelten als **ok**; nur echte Ausfälle (5xx / keine Antwort) machen den Job rot. Eine Fehlschlag-Mail von GitHub ist also das echte Warnsignal.
+- **Fehlerlogik:** `2xx` und `401/403` (RLS blockt anonym – Anfrage zählt trotzdem) gelten als **ok**. *Nachgemessen am 21.08.2026:* der anonyme Ping auf `items` liefert tatsächlich **HTTP 200 mit leerem Array `[]`** – RLS filtert die Zeilen weg, statt die Anfrage abzulehnen. Der 401/403-Fall ist also nur die Absicherung, der Normalfall ist 200. Wichtig zu wissen: ein „erfolgreicher" Ping beweist **nicht**, dass Daten lesbar sind – er beweist nur, dass das Projekt wach ist (genau das ist ja der Zweck). nur echte Ausfälle (5xx / keine Antwort) machen den Job rot. Eine Fehlschlag-Mail von GitHub ist also das echte Warnsignal.
 - **Der Key im Workflow ist der publishable Key** – steht ohnehin öffentlich in `index.html`, kein Secret nötig.
 - **Stolperstein beim Pushen:** Dateien unter `.github/workflows/` brauchen den `workflow`-Scope. Falls `git push` mit *„refusing to allow an OAuth App to create or update workflow"* abbricht: einmalig `gh auth refresh -h github.com -s workflow` ausführen (Geräte-Code im Browser bestätigen), dann erneut pushen.
 - Ein Pro-Upgrade (25 $/Monat) ist dafür **nicht** nötig.
@@ -187,7 +191,8 @@ git push origin main
 2. ✅ **Datenbank + Login** (29.07.2026) – Supabase + Google-Login, gemeinsame Live-Liste, RLS (Bastian + Simone), Verlauf mit wer/wann.
 3. ✅ **Rezept-Import ohne Foto** (30.07.2026, live) – Link/Teilen → Zutaten via `schema.org/Recipe` + Edge Function, Portions-Regler, Checkliste. Plus **„Liste leeren"** (5-Sek-Halten).
 4. ✅ **Katalog aufräumen + Vorschläge** (30.07.2026, live) – Kategorien einklappbar (Standard: zu); Top-Bereich **⭐ Oft gekauft** aus dauerhafter Statistik (`stats`). „Zuletzt gekauft" bewusst weggelassen (deckt der Verlauf ab).
-5. 🎨 **Icons** (später) – ggf. hübsches Icon-Set + Emoji-Fallback.
+5. ✅ **Emoji-Raten + ⭐ aufräumen** (21.08.2026, live) – gemeinsames Rate-Verfahren mit `EMO_WORDS` statt 🛒-Platzhalter; ⭐-Kacheln per Langdruck entfernbar; Links gehen in den Rezept-Import.
+6. 🎨 **Icons** (später, weiterhin offen) – ggf. hübsches Icon-Set statt Emojis. Durch die Stichwortliste ist der Druck dahinter deutlich kleiner geworden.
 
 **Handys: Bastian und Simone nutzen iPhone.**
 - **Primärweg am iPhone:** 🍳 **Link einfügen** – funktioniert überall.
@@ -195,6 +200,7 @@ git push origin main
 - **Offene iOS-Alternative (noch nicht gebaut):** ein Apple **Kurzbefehl** (Shortcuts), der aus dem Teilen-Menü den Link an `…/einkaufsliste/?share_url=<URL>` weiterreicht → App startet den Import automatisch.
 
 **Offen/To-do:**
+- `supabase/stats_delete.sql` einmalig im SQL Editor ausführen (optional, siehe Abschnitt 6).
 - iOS-Kurzbefehl für „Teilen an Einkaufsliste" einrichten (wenn gewünscht).
 - Simone muss sich einmal auf der Live-URL mit ihrem Gmail (simone.horlacher89@gmail.com) anmelden, damit ihr Profil (Name/Foto) angelegt wird – ihr Konto ist in `members` schon freigeschaltet.
 
@@ -208,7 +214,8 @@ git push origin main
 | Hauptdatei | `index.html` (App komplett) |
 | PWA-Dateien | `manifest.json`, `sw.js`, `icon.svg` |
 | Edge Function | `supabase/functions/recipe-import/index.ts` (Rezept-Import) |
-| Statistik | Tabelle `stats` + Funktion `bump_stat` (SQL: `supabase/stats.sql`) – „⭐ Oft gekauft" |
+| Statistik | Tabelle `stats` + Funktion `bump_stat` (SQL: `supabase/stats.sql`) – „⭐ Oft gekauft"; DELETE-Policy optional per `supabase/stats_delete.sql` |
+| Emojis | Katalog + Stichwortliste `EMO_WORDS` in `index.html`; `emoFor()` rät, `showEmo()` bessert alte 🛒 beim Anzeigen nach |
 | Keepalive | GitHub Action `.github/workflows/supabase-keepalive.yml` – pingt täglich die DB an (Free-Tarif pausiert nach 7 Tagen Inaktivität), Bot-Commit nur ~1×/Monat |
 | GitHub | `bastianstute88/einkaufsliste` (public) |
 | Live | https://bastianstute88.github.io/einkaufsliste/ |
@@ -216,6 +223,6 @@ git push origin main
 | Backend | Supabase `ynkvoujaqqoslbzslbvb` (Postgres + Auth + Realtime + Edge Function) |
 | Login | Google OAuth (Cloud-Projekt `einkaufsliste-503918`, „In Produktion") |
 | Mitglieder | Bastian + Simone (Tabelle `members`, RLS) |
-| Sync | Live (Supabase Realtime auf `items` + `history`) |
+| Sync | Live (Supabase Realtime auf `items` + `history` + `stats`) |
 | Rezept-Import | Link/Teilen → JSON-LD → Zutaten (kein Foto, keine KI) |
 | Handys | beide iPhone → „Teilen an App" nur Android; iPhone nutzt Link einfügen |
