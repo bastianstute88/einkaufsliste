@@ -3,7 +3,8 @@
 Eine eigene Einkaufslisten-App (Bring-Ersatz) für Bastian und seine Frau.
 
 **Stand (zuletzt aktualisiert 04.09.2026):** **Schritt 3 + 4 fertig & live.**
-- **🍜 Asia Markt (04.09.2026):** Neuer **Marker im Mengen-Menü** (hinten in der zweiten Reihe, nach Vorrat/Sonstiges/Event) und dazu ein eigener **Bereich auf der Liste**. Anlass: Asia-Markt-Sachen lagen bisher in „Sonstiges" zwischen allem Möglichen. Damit vorhandene Artikel umziehen können, ohne sie neu anzulegen: **Kachel auf der Liste ~0,6 s gedrückt halten = Menge/Bereich nachträglich ändern.** Details in Abschnitt 4.
+- **🍜 Asia Markt (04.09.2026, live – auf iPhone und Mac bestätigt):** Neuer **Marker im Mengen-Menü** (hinten in der zweiten Reihe, nach Vorrat/Sonstiges/Event) und dazu ein eigener **Bereich auf der Liste**. Anlass: Bastian fährt öfter in den Asia-Markt, die Sachen lagen bisher in „Sonstiges" zwischen allem Möglichen. Damit vorhandene Artikel umziehen können, ohne sie neu anzulegen: **Kachel auf der Liste ~0,6 s gedrückt halten = Menge/Bereich nachträglich ändern.** Details in Abschnitt 4.
+- **Dock-Kachel lädt jetzt neu (04.09.2026):** Der Launcher holte ein offenes Chrome-Fenster nur nach vorn – **ohne eine einzige Anfrage**, also lief dort weiter der Code vom letzten Seitenaufbau. Deshalb fehlte der Asia-Markt-Bereich am Mac, während er auf dem iPhone sofort da war. `reload active tab of w` behebt es. Details in Abschnitt 6.
 - **Emojis & Kachel-Text nachgebessert (04.09.2026):** ☕ statt 🫘 bei „Kaffeebohnen", 🥐 für Semmeln/Brötchen, 🧅 statt 🥬 bei „Lauchzwiebeln", 🥛 für Joghurt/Skyr/Sahne/Schmand, 🐟 statt 🥫 bei Thunfisch, 🍝 statt 🍜 bei Spaghetti, 🌽 statt 🥫 bei Dosenmais, 🍄‍🟫 statt Fliegenpilz bei Champignons – und lange Namen werden jetzt getrennt statt abgeschnitten. Details in Abschnitt 4.
 - **Dock-Kachel am Mac (04.09.2026):** Ein Startknopf im Dock öffnet die Liste als eigenes Fenster ohne Browser-Rahmen – inkl. eigenem Mac-Icon. Details in Abschnitt 6.
 - **⭐-Kacheln rauswerfen (21.08.2026):** Eine Kachel unter „Oft gekauft" **~0,6 s gedrückt halten** → Sicherheitsfrage → weg. Anlass: Ein Rezept-Link war versehentlich als Artikel „Https://www.chefkoch.de/…" auf der Liste gelandet, zweimal abgehakt worden und stand dadurch dauerhaft unter „Oft gekauft", ohne dass man ihn wieder loswurde.
@@ -108,6 +109,7 @@ Zentrale Konstanten: `CATALOG` (Kategorien+Emoji+Name), `EMO_WORDS` (Stichwörte
 - **Kachel im Bereich „Auf der Liste"/Asia/Event/Sonstiges/Vorrat halten** → sie wird grün umrandet und etwas kleiner, dann öffnet sich das gewohnte **Mengen-Menü mit den aktuellen Werten**. „Übernehmen" schreibt Menge + Bereich zurück (`updateItem` → `sb.from("items").update(...)`), der Artikel springt sofort in den passenden Bereich.
 - Scrollen/Wegrutschen (>10 px) bricht ab; der Tap nach dem Halten wird geschluckt, damit nichts versehentlich abgehakt wird. Gleiches Prinzip wie beim Langdruck auf ⭐-Kacheln, nur mit `edit-hold` (grün) statt `fav-hold` (rot).
 - Technisch: `openEdit(id)` setzt `pending.id`; `#saveBtn` entscheidet daran zwischen **ändern** (`updateItem`) und **neu anlegen** (`addItem`).
+- Läuft **auf iPhone und Mac** (dort: Maustaste gedrückt halten). Die Kacheln haben `user-select:none`, es markiert sich beim Halten also kein Text.
 
 **🍳 Rezept-Import (Button oben, neben 🕘) – NEU, Schritt 3**
 - Öffnet ein Sheet mit **Link-Feld**: Rezept-URL (Chefkoch, Lecker, Essen&Trinken, AllRecipes …) einfügen → **„Zutaten holen"**.
@@ -234,7 +236,7 @@ git push origin main
 3. ✅ **Rezept-Import ohne Foto** (30.07.2026, live) – Link/Teilen → Zutaten via `schema.org/Recipe` + Edge Function, Portions-Regler, Checkliste. Plus **„Liste leeren"** (5-Sek-Halten).
 4. ✅ **Katalog aufräumen + Vorschläge** (30.07.2026, live) – Kategorien einklappbar (Standard: zu); Top-Bereich **⭐ Oft gekauft** aus dauerhafter Statistik (`stats`). „Zuletzt gekauft" bewusst weggelassen (deckt der Verlauf ab).
 5. ✅ **Emoji-Raten + ⭐ aufräumen** (21.08.2026, live) – gemeinsames Rate-Verfahren mit `EMO_WORDS` statt 🛒-Platzhalter; ⭐-Kacheln per Langdruck entfernbar; Links gehen in den Rezept-Import.
-6. ✅ **Asia Markt** (04.09.2026) – neuer Marker 🍜 im Mengen-Menü + eigener Listen-Bereich; dazu **Langdruck auf Listen-Kacheln**, um Menge/Bereich nachträglich zu ändern. Katalog-Kategorie + Auto-Vorauswahl bewusst wieder verworfen (zu viel des Guten).
+6. ✅ **Asia Markt** (04.09.2026, live) – neuer Marker 🍜 im Mengen-Menü + eigener Listen-Bereich; dazu **Langdruck auf Listen-Kacheln**, um Menge/Bereich nachträglich zu ändern. Katalog-Kategorie mit Asia-Produkten + Auto-Vorauswahl waren gebaut und wurden auf Bastians Wunsch **wieder verworfen** (zu viel des Guten – der Marker wird von Hand gesetzt wie Vorrat/Sonstiges/Event auch). Nachgezogen: Dock-Kachel lädt neu (Abschnitt 6), sonst kommen Updates am Mac nie an.
 7. 🎨 **Icons** (später, weiterhin offen) – ggf. hübsches Icon-Set statt Emojis. Durch die Stichwortliste ist der Druck dahinter deutlich kleiner geworden.
 
 **Handys: Bastian und Simone nutzen iPhone.**
