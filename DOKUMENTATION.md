@@ -207,7 +207,9 @@ git push origin main
 
 **Dock-Kachel „Einkaufsliste" auf dem Mac (04.09.2026):**
 - **Warum:** Am Handy ist die App aufs Home-Display gelegt – am Mac musste man sie sich bisher aus den Lesezeichen suchen. Jetzt liegt sie als **Startknopf im Dock**, wie das Artikel-Dashboard.
-- **Was passiert beim Klick:** `/Applications/Einkaufsliste.app` öffnet die Live-App in einem **eigenen Chrome-Fenster ohne Adressleiste und Tabs** (`open -na "Google Chrome" --args --app=<URL>`) – sieht aus wie ein echtes Programm. Ist das Fenster schon offen, wird es nur **nach vorn geholt** statt ein zweites aufzumachen.
+- **Was passiert beim Klick:** `/Applications/Einkaufsliste.app` öffnet die Live-App in einem **eigenen Chrome-Fenster ohne Adressleiste und Tabs** (`open -na "Google Chrome" --args --app=<URL>`) – sieht aus wie ein echtes Programm. Ist das Fenster schon offen, wird es **neu geladen und nach vorn geholt** statt ein zweites aufzumachen.
+- 🚨 **`reload active tab of w` ist Pflicht (04.09.2026):** Ohne das holt der Dock-Klick nur ein Fenster nach vorn, das seit Stunden offen steht – **es wird keine einzige Anfrage gestellt**, also läuft dort weiter der alte Code. Genau so ist der 🍜-Asia-Markt-Bereich am Mac „nicht angekommen", während er auf dem iPhone (App geschlossen → echter Seitenaufbau) sofort da war. **Kein Cache-Problem:** Der Service Worker cached bewusst nichts, und der HTTP-Cache von GitHub Pages (`max-age=600`) wäre nach 10 Minuten durch. Der `reload` steckt in einem eigenen `try`, damit ohne Automations-Freigabe wenigstens das Nach-vorn-Holen bleibt.
+- **Nach jeder Änderung an `tools/launcher.applescript` muss das Bundle neu gebaut werden** – die `.app` enthält eine kompilierte Kopie (`Contents/Resources/Scripts/main.scpt`), die Quelldatei allein bewirkt nichts. Befehle siehe unten; danach `osadecompile …/main.scpt` zur Kontrolle.
 - **Quellen im Repo:** `tools/launcher.applescript` (Starter), `tools/mac-icon.svg` (Icon-Vorlage), `tools/icon.icns` (fertiges Mac-Icon).
 - **App neu bauen** – Reihenfolge ist wichtig:
   ```bash

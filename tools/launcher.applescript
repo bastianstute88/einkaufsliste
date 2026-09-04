@@ -21,6 +21,11 @@ if chromeRunning then
 			repeat with w in windows
 				try
 					if (URL of active tab of w) starts with appURL then
+						-- Erst neu laden: das Fenster steht ggf. seit Stunden offen und zeigt
+						-- dann noch die alte Fassung (der Dock-Klick allein laedt NICHT neu).
+						try
+							reload active tab of w
+						end try
 						set index of w to 1
 						set found to true
 						exit repeat
