@@ -86,6 +86,7 @@
   .tile:active{transform:scale(.94)}
   /* ⭐-Kachel lange gedrückt halten = aus "Oft gekauft" entfernen */
   .tile.fav-hold{transform:scale(.9);border-color:#b23b3b;opacity:.6}
+  .tile.edit-hold{transform:scale(.93);border-color:var(--green);opacity:.75}
   .tile .emo{font-size:30px;line-height:1;display:block;margin:4px 0 6px}
   .tile .nm{font-size:12.5px;font-weight:600;line-height:1.15;color:var(--ink);
     display:block;width:100%;height:29px;overflow:hidden;
@@ -272,6 +273,12 @@
         <span class="lbl" id="clearLbl">🗑️ Zum Leeren halten</span>
       </button>
     </div>
+  </section>
+
+  <!-- Asia Markt -->
+  <section id="asiaSection" style="display:none">
+    <div class="sec-title band">🍜 Asia Markt <span class="count" id="asiaCount">0</span></div>
+    <div class="grid list" id="asiaGrid"></div>
   </section>
 
   <!-- Event -->
@@ -520,15 +527,30 @@ const EMO_WORDS = [
   ["💐", ["blumen","strauß"]],
   ["🎁", ["geschenk"]],
   ["📦", ["alufolie","frischhaltefolie","backpapier","gefrierbeutel","brotdose"]],
-  ["🐱", ["katzenstreu"]]
+  ["🐱", ["katzenstreu"]],
+  // Asia-Markt (alles, was nicht schon im Katalog steht)
+  ["🍜", ["ramen","udon","soba","reisnudeln","glasnudeln","instantnudeln","mie-nudeln","miennudeln","wok-nudeln"]],
+  ["🍶", ["sojasauce","sojasoße","sojasosse","reisessig","mirin","reiswein"]],
+  ["🫙", ["fischsauce","austernsauce","hoisin","teriyaki","currypaste","currypulver"]],
+  ["🫘", ["miso","misopaste"]],
+  ["🌶️", ["sriracha","sambal","gochujang","chiliöl","chilioel","chiliflocken"]],
+  ["🥟", ["dumpling","gyoza","wan tan","wonton","dim sum","frühlingsrolle","fruehlingsrolle"]],
+  ["🍙", ["nori","onigiri"]],
+  ["🥬", ["pak choi","bok choy","chinakohl"]],
+  ["🌿", ["zitronengras","thai-basilikum","koriander","wasabi","kaffirlimette"]],
+  ["🍵", ["matcha","jasmintee","grüner tee","gruener tee"]],
+  ["🌰", ["sesam","sesamsamen"]],
+  ["🍚", ["jasminreis","klebreis","sushireis","sushi-reis"]],
+  ["🌾", ["panko"]],
+  ["🍤", ["krupuk","tempura"]]
 ];
 // flach + längste Stichwörter zuerst, damit das speziellere Wort gewinnt
 const EMO_FLAT = EMO_WORDS.flatMap(([e,ws])=>ws.map(w=>[w,e])).sort((a,b)=>b[0].length-a[0].length);
 
 /* ---------- Konstanten ---------- */
 const UNITS = ["g","kg","ml","l"];                  // echte Mengeneinheiten
-const TAGS  = [["Tiefkühl","❄️"],["Vorrat","📦"],["Sonstiges","🛍️"],["Event","🎁"]]; // Marker statt Menge
-const SECTIONS = ["Vorrat","Sonstiges","Event"];    // eigene Bereiche, Menge ausgeblendet
+const TAGS  = [["Tiefkühl","❄️"],["Vorrat","📦"],["Sonstiges","🛍️"],["Event","🎁"],["Asia Markt","🍜"]]; // Marker statt Menge
+const SECTIONS = ["Vorrat","Sonstiges","Event","Asia Markt"];   // eigene Bereiche, Menge ausgeblendet
 
 /* ---------- State (Cache in localStorage für sofortiges Bild) ---------- */
 const KEY = "einkauf_supabase_v1";
@@ -596,8 +618,9 @@ function render(){
   const active    = onList.filter(i=>!SECTIONS.includes(i.unit));
   const events    = onList.filter(i=>i.unit==="Event");
   const sonstiges = onList.filter(i=>i.unit==="Sonstiges");
+  const asia      = onList.filter(i=>i.unit==="Asia Markt");
   const vorrat    = onList.filter(i=>i.unit==="Vorrat");
-  const toBuy = active.length + events.length + sonstiges.length;   // Vorrat zählt bewusst NICHT mit
+  const toBuy = active.length + events.length + sonstiges.length + asia.length;   // Vorrat zählt bewusst NICHT mit
 
   $("#subtle").textContent = toBuy ? toBuy+" Artikel zu kaufen" : "Noch nichts drauf – leg los 🙂";
 
@@ -605,6 +628,10 @@ function render(){
   $("#activeCount").textContent = toBuy;
   $("#activeEmpty").style.display = toBuy? "none":"block";
   $("#clearWrap").style.display = active.length ? "block" : "none";   // nur wenn Hauptbereich was hat
+
+  $("#asiaSection").style.display = asia.length? "block":"none";
+  $("#asiaCount").textContent = asia.length;
+  $("#asiaGrid").innerHTML = asia.map(tileHTML).join("");
 
   $("#eventSection").style.display = events.length? "block":"none";
   $("#eventCount").textContent = events.length;
@@ -723,6 +750,14 @@ async function addItem(name, emo, qty=null, unit=null){
     await sb.from("history").insert({ id:h.id, name:h.name, emo:h.emo, action:"add", qty:h.qty, unit:h.unit, who:h.who, who_name:h.who_name, who_avatar:h.who_avatar });
   }catch(e){ flagSync(false); }
 }
+async function updateItem(id, qty, unit){
+  const it = byId(id); if(!it) return;
+  it.qty = qty ?? null; it.unit = unit ?? null;
+  armedId = null;
+  render();
+  try{ await sb.from("items").update({ qty: it.qty, unit: it.unit }).eq("id", id); }
+  catch(e){ flagSync(false); }
+}
 async function buyItem(id){
   const it = byId(id); if(!it) return;
   const h = logHistLocal(it, "buy");
@@ -794,6 +829,34 @@ $("#catalog").addEventListener("pointermove", e=>{
 ["pointerup","pointercancel","pointerleave"].forEach(ev=> $("#catalog").addEventListener(ev, favHoldCancel));
 window.addEventListener("scroll", favHoldCancel, {passive:true});
 
+/* ---------- Listen-Kachel lange drücken = Menge/Bereich ändern ---------- */
+let editTimer=null, editTile=null, editStart=null;
+function editHoldCancel(){
+  if(editTimer){ clearTimeout(editTimer); editTimer=null; }
+  if(editTile){ editTile.classList.remove("edit-hold"); editTile=null; }
+  editStart=null;
+}
+document.addEventListener("pointerdown", e=>{
+  const t = e.target.closest('.grid.list .tile[data-id]'); if(!t) return;
+  editHoldCancel();
+  editTile=t; editStart={x:e.clientX,y:e.clientY};
+  t.classList.add("edit-hold");
+  editTimer = setTimeout(()=>{
+    const id = editTile && editTile.getAttribute("data-id");
+    editHoldCancel();
+    swallowClick=true;                       // der folgende Tap darf nichts abhaken
+    setTimeout(()=>{ swallowClick=false; }, 800);
+    if(armedId!=null){ armedId=null; render(); }
+    openEdit(id);
+  }, FAV_HOLD_MS);
+});
+document.addEventListener("pointermove", e=>{
+  if(!editStart) return;
+  if(Math.abs(e.clientX-editStart.x)>10 || Math.abs(e.clientY-editStart.y)>10) editHoldCancel();   // Scrollen bricht ab
+});
+["pointerup","pointercancel"].forEach(ev=> document.addEventListener(ev, editHoldCancel));
+window.addEventListener("scroll", editHoldCancel, {passive:true});
+
 async function removeFav(name){
   if(!name) return;
   if(!confirm(`„${name}" aus ⭐ Oft gekauft entfernen?`)) return;
@@ -813,6 +876,14 @@ function openAdd(name, emo){
   tmp={ qty:null, unit:null };
   $("#qtyEmo").textContent=pending.emo;
   $("#qtyName").textContent=name;
+  drawSheet(); openSheet("#qtySheet");
+}
+function openEdit(id){
+  const it = byId(id); if(!it) return;
+  pending={ id:it.id, name:it.name, emo:it.emo };
+  tmp={ qty: it.qty ?? null, unit: it.unit ?? null };
+  $("#qtyEmo").textContent=it.emo;
+  $("#qtyName").textContent=it.name;
   drawSheet(); openSheet("#qtySheet");
 }
 function stepSize(){
@@ -851,7 +922,13 @@ $("#units").onclick=e=>{
   else { tmp.unit=u; if(UNITS.includes(u) && tmp.qty==null) tmp.qty=1; }
   drawSheet();
 };
-$("#saveBtn").onclick=()=>{ if(pending) addItem(pending.name, pending.emo, tmp.qty, tmp.unit); closeSheet(); };
+$("#saveBtn").onclick=()=>{
+  if(pending){
+    if(pending.id) updateItem(pending.id, tmp.qty, tmp.unit);      // schon auf der Liste -> nur ändern
+    else addItem(pending.name, pending.emo, tmp.qty, tmp.unit);
+  }
+  closeSheet();
+};
 $("#removeBtn").onclick=()=>{ closeSheet(); };
 
 /* ---------- Sheets ---------- */

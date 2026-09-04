@@ -3,6 +3,7 @@
 Eine eigene Einkaufslisten-App (Bring-Ersatz) für Bastian und seine Frau.
 
 **Stand (zuletzt aktualisiert 04.09.2026):** **Schritt 3 + 4 fertig & live.**
+- **🍜 Asia Markt (04.09.2026):** Neuer **Marker im Mengen-Menü** (hinten in der zweiten Reihe, nach Vorrat/Sonstiges/Event) und dazu ein eigener **Bereich auf der Liste**. Anlass: Asia-Markt-Sachen lagen bisher in „Sonstiges" zwischen allem Möglichen. Damit vorhandene Artikel umziehen können, ohne sie neu anzulegen: **Kachel auf der Liste ~0,6 s gedrückt halten = Menge/Bereich nachträglich ändern.** Details in Abschnitt 4.
 - **Emojis & Kachel-Text nachgebessert (04.09.2026):** ☕ statt 🫘 bei „Kaffeebohnen", 🥐 für Semmeln/Brötchen, 🧅 statt 🥬 bei „Lauchzwiebeln", 🥛 für Joghurt/Skyr/Sahne/Schmand, 🐟 statt 🥫 bei Thunfisch, 🍝 statt 🍜 bei Spaghetti, 🌽 statt 🥫 bei Dosenmais, 🍄‍🟫 statt Fliegenpilz bei Champignons – und lange Namen werden jetzt getrennt statt abgeschnitten. Details in Abschnitt 4.
 - **Dock-Kachel am Mac (04.09.2026):** Ein Startknopf im Dock öffnet die Liste als eigenes Fenster ohne Browser-Rahmen – inkl. eigenem Mac-Icon. Details in Abschnitt 6.
 - **⭐-Kacheln rauswerfen (21.08.2026):** Eine Kachel unter „Oft gekauft" **~0,6 s gedrückt halten** → Sicherheitsfrage → weg. Anlass: Ein Rezept-Link war versehentlich als Artikel „Https://www.chefkoch.de/…" auf der Liste gelandet, zweimal abgehakt worden und stand dadurch dauerhaft unter „Oft gekauft", ohne dass man ihn wieder loswurde.
@@ -59,7 +60,7 @@ state = {
 
 - **`id` ist eine UUID** (`crypto.randomUUID()`) – dieselbe ID lokal wie in Supabase (kein Doppel-Eintrag beim Realtime-Echo).
 - `qty`: Zahl **oder `null`** (= „ohne Menge", kein Badge).
-- `unit`: `null` (einfache Zahl) · `"g"|"kg"|"ml"|"l"` (echte Mengen) · `"Tiefkühl"` (❄️-Marker) · `"Vorrat"|"Sonstiges"|"Event"` (Bereichs-Marker, ohne Menge).
+- `unit`: `null` (einfache Zahl) · `"g"|"kg"|"ml"|"l"` (echte Mengen) · `"Tiefkühl"` (❄️-Marker) · `"Asia Markt"|"Vorrat"|"Sonstiges"|"Event"` (Bereichs-Marker, ohne Menge).
 - Gleiches Produkt darf **mehrfach** vorkommen. Deshalb `id` statt Name als Schlüssel.
 - `action`: `"add"` (draufgesetzt) oder `"buy"` (abgehakt/gekauft). `t` = `Date.now()`.
 
@@ -77,7 +78,7 @@ Hinweis: Die Statistik liegt **nicht** in `state`, sondern in einer separaten Ma
 **Ein neues Mitglied hinzufügen:** im Supabase-SQL-Editor
 `insert into public.members(email, display_name) values ('neue@gmail.com','Name');`
 
-Zentrale Konstanten: `CATALOG` (Kategorien+Emoji+Name), `EMO_WORDS` (Stichwörter fürs Emoji-Raten außerhalb des Katalogs), `UNITS = ["g","kg","ml","l"]`, `TAGS` (Tiefkühl/Vorrat/Sonstiges/Event), `SECTIONS = ["Vorrat","Sonstiges","Event"]`.
+Zentrale Konstanten: `CATALOG` (Kategorien+Emoji+Name), `EMO_WORDS` (Stichwörter fürs Emoji-Raten außerhalb des Katalogs), `UNITS = ["g","kg","ml","l"]`, `TAGS` (Tiefkühl/Vorrat/Sonstiges/Event/Asia Markt), `SECTIONS = ["Vorrat","Sonstiges","Event","Asia Markt"]`.
 
 ---
 
@@ -91,8 +92,22 @@ Zentrale Konstanten: `CATALOG` (Kategorien+Emoji+Name), `EMO_WORDS` (Stichwörte
 - **1. Druck** → Artikel wird **ausgegraut** + Häkchen. **2. Druck** → **weg** (wandert in den Verlauf = Undo). Woanders tippen hebt die Auswahl auf.
 
 **Bereiche (Reihenfolge von oben)**
-1. **Auf der Liste** – normale Sachen (Zähler enthält auch Event + Sonstiges).
-2. **🎁 Event** · 3. **🛍️ Sonstiges** · 4. **📦 Vorrat – kann, muss nicht** (gestrichelt, zählt NICHT mit).
+1. **Auf der Liste** – normale Sachen (Zähler enthält auch Asia Markt + Event + Sonstiges).
+2. **🍜 Asia Markt** · 3. **🎁 Event** · 4. **🛍️ Sonstiges** · 5. **📦 Vorrat – kann, muss nicht** (gestrichelt, zählt NICHT mit).
+- Jeder Bereich taucht nur auf, wenn etwas drin liegt, und blendet die Mengen-Badges aus (der Bereich sagt ja schon alles).
+
+**🍜 Asia Markt – NEU (04.09.2026)**
+- **Warum:** Zeug aus dem Asia-Markt landete bisher in „Sonstiges" und stand dort zwischen allem Möglichen. Jetzt ist es ein eigener Bereich – beim Einkaufen sieht man auf einen Blick, was es nur dort gibt.
+- **Marker im Mengen-Menü:** zweite Chip-Reihe, **hinten nach Vorrat/Sonstiges/Event** (bewusst nicht davor, damit die gewohnten drei da bleiben, wo sie waren). Auf dem iPhone rutscht er dadurch in eine dritte Zeile.
+- **Bereich auf der Liste:** direkt unter „Auf der Liste", vor Event/Sonstiges/Vorrat. Verhält sich wie die anderen Bereiche – erscheint nur, wenn etwas drin liegt, blendet die Mengen-Badges aus, **zählt** beim Zähler „X Artikel zu kaufen" mit (anders als Vorrat) und **überlebt „Liste leeren"**.
+- **Bewusst NICHT gebaut:** keine eigene Katalog-Kategorie mit Asia-Produkten und keine Auto-Vorauswahl beim Draufsetzen. Der Marker wird von Hand gesetzt – wie bei Vorrat/Sonstiges/Event auch.
+- **Emoji-Raten** kennt die typischen Begriffe trotzdem (`EMO_WORDS`, greift auch beim Rezept-Import): ramen/udon/soba/reisnudeln → 🍜, sojasauce/mirin/reisessig → 🍶, fischsauce/hoisin/teriyaki → 🫙, sriracha/sambal/gochujang → 🌶️, gyoza/wan tan/dumpling → 🥟, nori → 🍙, pak choi/chinakohl → 🥬, zitronengras/koriander/wasabi → 🌿, matcha → 🍵, panko → 🌾, krupuk/tempura → 🍤, miso → 🫘. Vorher gab es dafür 🛒.
+
+**Menge/Bereich nachträglich ändern: Listen-Kachel ~0,6 s gedrückt halten – NEU (04.09.2026)**
+- Anlass: Ohne das müsste man einen Artikel abhaken und neu draufsetzen, nur um ihn von „Sonstiges" nach „🍜 Asia Markt" zu schieben.
+- **Kachel im Bereich „Auf der Liste"/Asia/Event/Sonstiges/Vorrat halten** → sie wird grün umrandet und etwas kleiner, dann öffnet sich das gewohnte **Mengen-Menü mit den aktuellen Werten**. „Übernehmen" schreibt Menge + Bereich zurück (`updateItem` → `sb.from("items").update(...)`), der Artikel springt sofort in den passenden Bereich.
+- Scrollen/Wegrutschen (>10 px) bricht ab; der Tap nach dem Halten wird geschluckt, damit nichts versehentlich abgehakt wird. Gleiches Prinzip wie beim Langdruck auf ⭐-Kacheln, nur mit `edit-hold` (grün) statt `fav-hold` (rot).
+- Technisch: `openEdit(id)` setzt `pending.id`; `#saveBtn` entscheidet daran zwischen **ändern** (`updateItem`) und **neu anlegen** (`addItem`).
 
 **🍳 Rezept-Import (Button oben, neben 🕘) – NEU, Schritt 3**
 - Öffnet ein Sheet mit **Link-Feld**: Rezept-URL (Chefkoch, Lecker, Essen&Trinken, AllRecipes …) einfügen → **„Zutaten holen"**.
@@ -106,7 +121,7 @@ Zentrale Konstanten: `CATALOG` (Kategorien+Emoji+Name), `EMO_WORDS` (Stichwörte
 **🗑️ Liste leeren (5 Sekunden gedrückt halten) – NEU**
 - Button unten am Bereich „Auf der Liste" (nur sichtbar, wenn dort etwas liegt).
 - **Gedrückt halten** → füllt sich rot, Countdown „Noch 5…4…3…". **Loslassen vor Ablauf = Abbruch**, nichts passiert.
-- Nach vollen **5 Sekunden**: nur der Bereich **„Auf der Liste"** wird geleert (Event/Sonstiges/Vorrat bleiben).
+- Nach vollen **5 Sekunden**: nur der Bereich **„Auf der Liste"** wird geleert (Asia Markt/Event/Sonstiges/Vorrat bleiben).
 - **Sicherheitsnetz**: die geleerten Artikel landen im **Verlauf** (als „gekauft") und sind von dort einzeln wieder draufsetzbar.
 - iPhone-tauglich über Pointer-Events; Text-Callout/Selektion beim Halten unterdrückt.
 
@@ -212,12 +227,13 @@ git push origin main
 
 ## 7. Fahrplan / Nächste Schritte
 
-1. ✅ **Mehr Produkte** – Katalog ~130 Produkte / 11 Kategorien.
+1. ✅ **Mehr Produkte** – Katalog ~150 Produkte / 11 Kategorien.
 2. ✅ **Datenbank + Login** (29.07.2026) – Supabase + Google-Login, gemeinsame Live-Liste, RLS (Bastian + Simone), Verlauf mit wer/wann.
 3. ✅ **Rezept-Import ohne Foto** (30.07.2026, live) – Link/Teilen → Zutaten via `schema.org/Recipe` + Edge Function, Portions-Regler, Checkliste. Plus **„Liste leeren"** (5-Sek-Halten).
 4. ✅ **Katalog aufräumen + Vorschläge** (30.07.2026, live) – Kategorien einklappbar (Standard: zu); Top-Bereich **⭐ Oft gekauft** aus dauerhafter Statistik (`stats`). „Zuletzt gekauft" bewusst weggelassen (deckt der Verlauf ab).
 5. ✅ **Emoji-Raten + ⭐ aufräumen** (21.08.2026, live) – gemeinsames Rate-Verfahren mit `EMO_WORDS` statt 🛒-Platzhalter; ⭐-Kacheln per Langdruck entfernbar; Links gehen in den Rezept-Import.
-6. 🎨 **Icons** (später, weiterhin offen) – ggf. hübsches Icon-Set statt Emojis. Durch die Stichwortliste ist der Druck dahinter deutlich kleiner geworden.
+6. ✅ **Asia Markt** (04.09.2026) – neuer Marker 🍜 im Mengen-Menü + eigener Listen-Bereich; dazu **Langdruck auf Listen-Kacheln**, um Menge/Bereich nachträglich zu ändern. Katalog-Kategorie + Auto-Vorauswahl bewusst wieder verworfen (zu viel des Guten).
+7. 🎨 **Icons** (später, weiterhin offen) – ggf. hübsches Icon-Set statt Emojis. Durch die Stichwortliste ist der Druck dahinter deutlich kleiner geworden.
 
 **Handys: Bastian und Simone nutzen iPhone.**
 - **Primärweg am iPhone:** 🍳 **Link einfügen** – funktioniert überall.
