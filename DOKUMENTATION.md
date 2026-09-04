@@ -2,7 +2,9 @@
 
 Eine eigene Einkaufslisten-App (Bring-Ersatz) für Bastian und seine Frau.
 
-**Stand (zuletzt aktualisiert 21.08.2026):** **Schritt 3 + 4 fertig & live.**
+**Stand (zuletzt aktualisiert 04.09.2026):** **Schritt 3 + 4 fertig & live.**
+- **Emojis & Kachel-Text nachgebessert (04.09.2026):** ☕ statt 🫘 bei „Kaffeebohnen", 🥐 für Semmeln/Brötchen, 🧅 statt 🥬 bei „Lauchzwiebeln", 🥛 für Joghurt/Skyr/Sahne/Schmand, 🐟 statt 🥫 bei Thunfisch, 🍝 statt 🍜 bei Spaghetti, 🌽 statt 🥫 bei Dosenmais, 🍄‍🟫 statt Fliegenpilz bei Champignons – und lange Namen werden jetzt getrennt statt abgeschnitten. Details in Abschnitt 4.
+- **Dock-Kachel am Mac (04.09.2026):** Ein Startknopf im Dock öffnet die Liste als eigenes Fenster ohne Browser-Rahmen – inkl. eigenem Mac-Icon. Details in Abschnitt 6.
 - **⭐-Kacheln rauswerfen (21.08.2026):** Eine Kachel unter „Oft gekauft" **~0,6 s gedrückt halten** → Sicherheitsfrage → weg. Anlass: Ein Rezept-Link war versehentlich als Artikel „Https://www.chefkoch.de/…" auf der Liste gelandet, zweimal abgehakt worden und stand dadurch dauerhaft unter „Oft gekauft", ohne dass man ihn wieder loswurde.
 - **Links landen im Rezept-Import (21.08.2026):** Steht ein `https://…` oder `www.…` im Suchfeld, wird daraus **kein** Artikel mehr – der Knopf heißt dann „🍳 Rezept importieren" und öffnet direkt den Import. Behebt die Ursache des Punkts darüber.
 - **Emoji-Raten repariert (21.08.2026):** Statt vieler 🛒-Platzhalter gibt es jetzt ein gemeinsames Rate-Verfahren mit Stichwortliste (`EMO_WORDS`) – Hafermilch 🥛, Datteln 🌴, Kefir 🥛, Wurst 🌭, Hummus 🥣 usw. Beim Tippen über die Suche wurde vorher **fest** 🛒 gesetzt, ohne überhaupt im Katalog nachzusehen. Details in Abschnitt 4.
@@ -123,12 +125,17 @@ Zentrale Konstanten: `CATALOG` (Kategorien+Emoji+Name), `EMO_WORDS` (Stichwörte
 
 **Sync-Punkt** (im Header): grün = Live-Sync verbunden.
 
-**Kachel-Text**: lange Namen werden per JS (`fitText`) verkleinert statt umgebrochen (Untergrenze 9 px).
+**Kachel-Text**: lange Namen werden per JS (`fitText`) verkleinert (Untergrenze 9 px) **und zusätzlich umgebrochen** (`overflow-wrap:anywhere` + `hyphens:auto`, greift dank `<html lang="de">` mit deutscher Silbentrennung). *Vorher (04.09.2026 behoben):* Ein langes Wort ohne Leerzeichen wie „Aufbacksemmeln" ließ sich nicht umbrechen, wurde bis 9 px geschrumpft und dann **mitten im Wort abgeschnitten** („Aufbacksemmelr"). Jetzt steht da „Aufbacksem-meln".
 
 **Emoji-Raten (`emoFor`)** – warum früher so viele 🛒-Karren auftauchten: der Fallback greift, sobald ein Name nicht *exakt* im Katalog steht. Beim Tippen über die Suche wurde sogar fest `"🛒"` gesetzt, ohne überhaupt nachzusehen (deshalb hatte selbst „Brot" einen Karren, obwohl 🍞 im Katalog liegt). Jetzt sucht **eine** Funktion in dieser Reihenfolge: exakter Katalog-Treffer → exaktes Stichwort aus `EMO_WORDS` → Stichwort als Teiltreffer (ab 4 Zeichen, **längere Stichwörter zuerst**, damit „hafermilch" 🥛 schlägt statt nur „milch") → Katalogname als Teiltreffer in **beide** Richtungen (fängt Einzahl/Mehrzahl: „Banane" ↔ „Bananen") → erst dann 🛒.
 - `EMO_WORDS` ist die Erweiterungsliste für alles außerhalb des Katalogs (Milchalternativen, Wurstsorten, Aufstriche, Drogerie …). Neue Wünsche einfach dort in die passende Emoji-Zeile eintragen – der Katalog selbst muss nicht wachsen.
 - `guessEmo` (Rezept-Import) ist nur noch ein Alias auf `emoFor` – vorher waren es zwei leicht verschiedene Rate-Funktionen.
-- `showEmo(emo, name)` bessert beim **Anzeigen** nach: steht bei einem Artikel noch der alte 🛒 in der Datenbank, wird live neu geraten. Dadurch sehen bestehende Listen/Verlauf/⭐-Kacheln sofort richtig aus, ohne dass etwas in Supabase umgeschrieben werden muss.
+- `showEmo(emo, name)` bessert beim **Anzeigen** nach: es wird **immer neu geraten**, und das Ergebnis gewinnt, sobald es *nicht* 🛒 ist; nur wenn das Raten aufgibt, bleibt das gespeicherte Emoji stehen. **Warum so (04.09.2026):** Vorher wurde nur der alte 🛒 ersetzt – ein *falsch* geratenes Emoji (🫘 bei „Kaffeebohnen") stand damit für immer in der Datenbank und blieb auch nach einer Korrektur der Liste sichtbar. Jetzt wirkt jede Verbesserung an `EMO_WORDS`/Katalog **rückwirkend** auf Liste, Verlauf und ⭐-Kacheln, ohne dass in Supabase etwas umgeschrieben werden muss. (Ein von Hand gewähltes Emoji gibt es nicht – alle gespeicherten Emojis stammen selbst aus dem Raten.)
+- **Korrekturen vom 04.09.2026** (alle als Stichwort, damit auch Verbunde wie „Filterkaffee" greifen): ☕ `kaffee`/`espresso` – sonst gewann bei „Kaffeebohnen" der Katalogname **Bohnen** 🫘, weil er in der Katalogreihenfolge vor „Kaffee" steht. 🥐 `semmel`/`brötchen` – „Aufbacksemmeln" hatte gar keinen Treffer (🛒). 🧅 `zwiebel` – „Lauchzwiebeln" wurde zu 🥬 Salat, weil das Stichwort `lauch` traf; `zwiebel` ist mit 7 Zeichen länger und wird deshalb zuerst geprüft. Und die Milchprodukte auf **🥛** vereinheitlicht: Joghurt (war 🍦 Eis), Skyr (war 🥤 Becher), Sahne und Schmand (beide 🍶 Sakeflasche) plus Stichwörter `joghurt`, `skyr`, `sahne`, `schmand`, `sauerrahm`, `crème fraîche`. `kaffeesahne` steht extra drin, sonst hätte das längere `kaffee` gewonnen. 🐟 **Thunfisch** stand als 🥫 im Katalog (gemeint war die *Dose*, auf dem iPhone sieht das aber wie eine Tomatendose aus) – jetzt Fisch wie Lachs & Co., plus Stichwörter `thunfisch`, `sardinen`, `sardellen`. 🥫 bleibt nur noch bei **Tomatensoße** – da ist die Tomatendose ja richtig.
+- **Katalog-Durchsicht am 04.09.2026** (einmal alle ~130 Kacheln nebeneinander gerendert, statt sie einzeln beim Einkaufen zu entdecken): 🍝 **Spaghetti** (war 🍜 = asiatische Nudelsuppe), 🌽 **Dosenmais** (war 🥫), 🥩 **Schnitzel** (war 🥓 Bacon), 🫧 **Sprudel** (war 💧 wie Wasser – zwei identische Tropfen), 🥣 **Cornflakes** (war 🌽 Maiskolben), 🫙 **Hefe** (war 🧈, sah aus wie Butter), 🍄‍🟫 **Champignons** (war 🍄 – der rote *Fliegenpilz*). **Suppe** und **Bonbons** sind ganz aus dem Katalog geflogen (wird beides nicht gekauft) – nebenbei ist damit auch die Dopplung „Zucker 🍬 = Bonbons 🍬" erledigt.
+- ⚠️ **Der braune Pilz 🍄‍🟫 ist eine ZWJ-Verbindung aus Emoji 15.1** (🍄 + Zero-Width-Joiner + 🟫) und braucht **mindestens iOS 17.4** (März 2024). Auf älteren Geräten zerfällt er sichtbar in zwei Zeichen: 🍄🟫. Für Bastian und Simone geprüft und in Ordnung – aber der einzige Katalog-Eintrag mit so einer Mindestversion, deshalb hier notiert.
+- **Bewusst nicht geändert** (kein besseres Emoji vorhanden, einmal durchgesprochen): Linsen/Bohnen/Kichererbsen teilen sich 🫘, Öl und Olivenöl teilen sich 🫒, Chips bleibt 🥔, und Schokolade/Nutella/Kakao/Backkakao bleiben alle 🍫.
+- **Merke fürs nächste Mal:** Der Katalog lässt sich schnell komplett anschauen, indem man `CATALOG` in eine Test-Seite mit der Kachel-CSS rendert und per `chrome --headless --screenshot` abfotografiert – so fallen doppelte oder irreführende Emojis auf einen Blick auf.
 
 ---
 
@@ -183,6 +190,24 @@ git push origin main
 - **Stolperstein beim Pushen:** Dateien unter `.github/workflows/` brauchen den `workflow`-Scope. Falls `git push` mit *„refusing to allow an OAuth App to create or update workflow"* abbricht: einmalig `gh auth refresh -h github.com -s workflow` ausführen (Geräte-Code im Browser bestätigen), dann erneut pushen.
 - Ein Pro-Upgrade (25 $/Monat) ist dafür **nicht** nötig.
 
+**Dock-Kachel „Einkaufsliste" auf dem Mac (04.09.2026):**
+- **Warum:** Am Handy ist die App aufs Home-Display gelegt – am Mac musste man sie sich bisher aus den Lesezeichen suchen. Jetzt liegt sie als **Startknopf im Dock**, wie das Artikel-Dashboard.
+- **Was passiert beim Klick:** `/Applications/Einkaufsliste.app` öffnet die Live-App in einem **eigenen Chrome-Fenster ohne Adressleiste und Tabs** (`open -na "Google Chrome" --args --app=<URL>`) – sieht aus wie ein echtes Programm. Ist das Fenster schon offen, wird es nur **nach vorn geholt** statt ein zweites aufzumachen.
+- **Quellen im Repo:** `tools/launcher.applescript` (Starter), `tools/mac-icon.svg` (Icon-Vorlage), `tools/icon.icns` (fertiges Mac-Icon).
+- **App neu bauen** – Reihenfolge ist wichtig:
+  ```bash
+  cd "/Users/basti/Desktop/Privat/Einkaufslisten App"
+  osacompile -o "/Applications/Einkaufsliste.app" tools/launcher.applescript
+  cp tools/icon.icns "/Applications/Einkaufsliste.app/Contents/Resources/applet.icns"
+  rm -f "/Applications/Einkaufsliste.app/Contents/Resources/Assets.car"   # sonst gewinnt das Standard-Icon
+  codesign --force --deep --sign - "/Applications/Einkaufsliste.app"
+  ```
+  Icon **vor** dem Signieren hineinkopieren, sonst bricht die Signatur und die Kachel startet nicht.
+- 🚨 **`Assets.car` muss weg** (gleicher Stolperstein wie beim Artikel-Dashboard, dort in `PROJEKT.md` §3 dokumentiert): `osacompile` legt neben `applet.icns` einen Asset-Katalog mit dem Standard-Applet-Icon ab, und **den bevorzugt macOS gegenüber der `.icns`** – das eigene Icon steckt zwar drin, wird aber nie angezeigt (weiße Schriftrolle). Nach dem Löschen greift `CFBundleIconFile = applet` sofort; Dock ggf. auffrischen mit `touch` + `lsregister -f` + `killall Dock`.
+- **Icon-Vorlage getrennt vom PWA-Icon:** `icon.svg` bleibt wie es ist (maskable, **voller** schwarzer Bleed – richtig fürs Handy, auf dem Mac aber ein hässliches schwarzes Quadrat). `tools/mac-icon.svg` ist die Mac-Fassung: transparent außen, macOS-typisches abgerundetes Quadrat mit Rand, grüner Verlauf, gleicher Einkaufswagen. Umgewandelt mit Bordmitteln – `sips` rendert das SVG nach PNG, `sips -z` erzeugt die Größen 16…1024, `iconutil -c icns` macht daraus die `.icns`.
+- **Ins Dock gelegt** per `defaults write com.apple.dock persistent-apps -array-add …` + `killall Dock`; danach lässt sich die Kachel wie jede andere an die gewünschte Stelle ziehen.
+- **Einmalige Rückfrage von macOS:** Beim ersten Klick fragt das System „Einkaufsliste möchte Google Chrome steuern" → **erlauben**. Lehnt man ab, funktioniert der Knopf trotzdem, macht dann aber bei jedem Klick ein neues Fenster auf (eingebauter Fallback). Ohne Chrome öffnet der Knopf den Standardbrowser.
+
 ---
 
 ## 7. Fahrplan / Nächste Schritte
@@ -217,6 +242,7 @@ git push origin main
 | Statistik | Tabelle `stats` + Funktion `bump_stat` (SQL: `supabase/stats.sql`) – „⭐ Oft gekauft"; DELETE-Policy optional per `supabase/stats_delete.sql` |
 | Emojis | Katalog + Stichwortliste `EMO_WORDS` in `index.html`; `emoFor()` rät, `showEmo()` bessert alte 🛒 beim Anzeigen nach |
 | Keepalive | GitHub Action `.github/workflows/supabase-keepalive.yml` – pingt täglich die DB an (Free-Tarif pausiert nach 7 Tagen Inaktivität), Bot-Commit nur ~1×/Monat |
+| Mac-Start | Dock-Kachel `/Applications/Einkaufsliste.app` (Quellen: `tools/launcher.applescript`, `tools/icon.icns`) – öffnet die Live-App als eigenes Chrome-Fenster |
 | GitHub | `bastianstute88/einkaufsliste` (public) |
 | Live | https://bastianstute88.github.io/einkaufsliste/ |
 | Cache | `localStorage`, Key `einkauf_supabase_v1` (nur Cache) |

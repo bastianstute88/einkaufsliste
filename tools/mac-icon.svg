@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Mac-Dock-Icon: abgerundetes Quadrat mit macOS-typischem Rand, transparent aussen -->
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3ea57a"/>
+      <stop offset="1" stop-color="#2e7d5b"/>
+    </linearGradient>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#g)"/>
+  <!-- Einkaufswagen aus icon.svg, auf die Kachel skaliert -->
+  <g transform="translate(100,100) scale(2.06) translate(-56,-56)"
+     fill="none" stroke="#ffffff" stroke-width="24" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M150 168 h34 l40 150 h118 l34 -104 H206"/>
+    <circle cx="236" cy="356" r="20" fill="#ffffff" stroke="none"/>
+    <circle cx="330" cy="356" r="20" fill="#ffffff" stroke="none"/>
+  </g>
+</svg>

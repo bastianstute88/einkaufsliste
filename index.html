@@ -88,7 +88,9 @@
   .tile.fav-hold{transform:scale(.9);border-color:#b23b3b;opacity:.6}
   .tile .emo{font-size:30px;line-height:1;display:block;margin:4px 0 6px}
   .tile .nm{font-size:12.5px;font-weight:600;line-height:1.15;color:var(--ink);
-    display:block;width:100%;height:29px;overflow:hidden}
+    display:block;width:100%;height:29px;overflow:hidden;
+    /* lange Einzelwoerter ("Aufbacksemmeln") trennen statt abschneiden */
+    overflow-wrap:anywhere;-webkit-hyphens:auto;hyphens:auto}
   .tile .qty{position:absolute;top:-7px;right:-7px;background:var(--green);color:#fff;
     font-size:11px;font-weight:800;border-radius:20px;padding:3px 8px;box-shadow:0 2px 6px rgba(46,125,91,.35);
     min-width:22px}
@@ -410,14 +412,14 @@ const CATALOG = [
     ["🍇","Trauben"],["🍓","Erdbeeren"],["🫐","Heidelbeeren"],["🥝","Kiwi"],["🍑","Pfirsich"],
     ["🍍","Ananas"],["🥭","Mango"],["🍉","Melone"],["🍅","Tomaten"],["🥔","Kartoffeln"],
     ["🧅","Zwiebeln"],["🧄","Knoblauch"],["🥕","Karotten"],["🥬","Salat"],["🥒","Gurke"],
-    ["🫑","Paprika"],["🍄","Champignons"],["🥦","Brokkoli"],["🥑","Avocado"],["🌽","Mais"],
+    ["🫑","Paprika"],["🍄‍🟫","Champignons"],["🥦","Brokkoli"],["🥑","Avocado"],["🌽","Mais"],
     ["🍆","Aubergine"],["🌶️","Chili"],["🫛","Erbsen"],["🎃","Kürbis"],["🫚","Ingwer"]
   ]],
   ["Milch & Kühlung", [
     ["🥛","Milch"],["🥛","H-Milch"],["🧈","Butter"],["🧈","Margarine"],["🧀","Käse"],
     ["🧀","Gouda"],["🧀","Frischkäse"],["🧀","Mozzarella"],["🧀","Feta"],["🧀","Parmesan"],
-    ["🥚","Eier"],["🍦","Joghurt"],["🥣","Quark"],["🥤","Skyr"],["🍶","Sahne"],
-    ["🍶","Schmand"],["🍮","Pudding"],["🥓","Speck"],["🌭","Wiener"],["🥪","Aufschnitt"]
+    ["🥚","Eier"],["🥛","Joghurt"],["🥣","Quark"],["🥛","Skyr"],["🥛","Sahne"],
+    ["🥛","Schmand"],["🍮","Pudding"],["🥓","Speck"],["🌭","Wiener"],["🥪","Aufschnitt"]
   ]],
   ["Brot & Backwaren", [
     ["🍞","Brot"],["🥖","Baguette"],["🥐","Brötchen"],["🥐","Croissant"],["🫓","Fladenbrot"],
@@ -425,29 +427,29 @@ const CATALOG = [
   ]],
   ["Fleisch & Fisch", [
     ["🍗","Hähnchen"],["🍗","Pute"],["🥩","Rindfleisch"],["🍖","Hackfleisch"],["🥩","Steak"],
-    ["🥓","Schnitzel"],["🍖","Gulasch"],["🌭","Würstchen"],["🐟","Fisch"],["🐟","Lachs"],
-    ["🍤","Garnelen"],["🥫","Thunfisch"]
+    ["🥩","Schnitzel"],["🍖","Gulasch"],["🌭","Würstchen"],["🐟","Fisch"],["🐟","Lachs"],
+    ["🍤","Garnelen"],["🐟","Thunfisch"]
   ]],
   ["Frühstück", [
-    ["🥣","Müsli"],["🥣","Haferflocken"],["🌽","Cornflakes"],["🍯","Honig"],["🍫","Nutella"],
+    ["🥣","Müsli"],["🥣","Haferflocken"],["🥣","Cornflakes"],["🍯","Honig"],["🍫","Nutella"],
     ["🍓","Marmelade"],["🥜","Erdnussbutter"],["🍫","Kakao"],["🥐","Nutella-Brötchen"],["🍊","O-Saft"]
   ]],
   ["Nudeln, Reis & Konserven", [
-    ["🍝","Nudeln"],["🍜","Spaghetti"],["🍚","Reis"],["🥔","Kartoffelpüree"],["🫘","Linsen"],
-    ["🫘","Bohnen"],["🫘","Kichererbsen"],["🥫","Tomatensoße"],["🍅","Passata"],["🥫","Dosenmais"],
-    ["🥫","Suppe"],["🥥","Kokosmilch"]
+    ["🍝","Nudeln"],["🍝","Spaghetti"],["🍚","Reis"],["🥔","Kartoffelpüree"],["🫘","Linsen"],
+    ["🫘","Bohnen"],["🫘","Kichererbsen"],["🥫","Tomatensoße"],["🍅","Passata"],["🌽","Dosenmais"],
+    ["🥥","Kokosmilch"]
   ]],
   ["Gewürze & Backen", [
     ["🧂","Salz"],["🫙","Pfeffer"],["🍬","Zucker"],["🌾","Mehl"],["🫒","Öl"],
     ["🫒","Olivenöl"],["🍶","Essig"],["🌶️","Paprikapulver"],["🌿","Kräuter"],["🫙","Backpulver"],
-    ["🍫","Backkakao"],["🧈","Hefe"]
+    ["🍫","Backkakao"],["🫙","Hefe"]
   ]],
   ["Süßes & Snacks", [
-    ["🍫","Schokolade"],["🍪","Kekse"],["🍬","Bonbons"],["🐻","Gummibärchen"],["🥨","Salzstangen"],
+    ["🍫","Schokolade"],["🍪","Kekse"],["🐻","Gummibärchen"],["🥨","Salzstangen"],
     ["🍿","Popcorn"],["🥜","Nüsse"],["🥔","Chips"],["🍩","Donuts"],["🍭","Lutscher"]
   ]],
   ["Getränke", [
-    ["💧","Wasser"],["💧","Sprudel"],["🧃","Saft"],["🥤","Cola"],["🥤","Limo"],
+    ["💧","Wasser"],["🫧","Sprudel"],["🧃","Saft"],["🥤","Cola"],["🥤","Limo"],
     ["🧉","Eistee"],["☕","Kaffee"],["🫖","Tee"],["🍺","Bier"],["🍷","Wein"],["🥂","Sekt"]
   ]],
   ["Tiefkühl", [
@@ -465,13 +467,17 @@ const CATALOG = [
    Teiltreffer ab 4 Zeichen; längere Stichwörter gewinnen ("hafermilch" schlägt "milch"). */
 const EMO_WORDS = [
   ["🥛", ["hafermilch","sojamilch","mandelmilch","reismilch","dinkelmilch","buttermilch","pflanzendrink",
-          "haferdrink","sojadrink","kefir","ayran","molke","kondensmilch"]],
+          "haferdrink","sojadrink","kefir","ayran","molke","kondensmilch","joghurt","jogurt",
+          "skyr","sahne","kaffeesahne","schmand","sauerrahm","crème fraîche","creme fraiche"]],
   ["🧀", ["halloumi","ricotta","hüttenkäse","harzer","brie","camembert","raclette","burrata","mascarpone","käse"]],
   ["🌭", ["wurst","salami","schinken","mortadella","bratwurst","leberkäse","chorizo","cabanossi","lyoner"]],
   ["🥓", ["bacon","pancetta"]],
   ["🌱", ["tofu","seitan","tempeh","veggie","vegan","sojagranulat","sojaschnetzel"]],
   ["🥣", ["hummus","tzatziki","guacamole","porridge","granola","overnight","kräuterquark","dip"]],
   ["🫘", ["kidneybohnen","edamame","sojabohnen"]],
+  ["☕", ["kaffee","espresso","cappuccino","macchiato"]],   // faengt auch "Kaffeebohnen", "Filterkaffee"
+  ["🥐", ["semmel","brötchen","broetchen","weckerl","schrippe","hörnchen"]],  // "Aufbacksemmeln", "Vollkornbrötchen"
+  ["🥨", ["brezel","breze","laugen"]],
   ["🌴", ["dattel"]],
   ["🍇", ["rosinen","sultaninen"]],
   ["🥜", ["mandeln","walnüsse","cashew","haselnuss","pistazien","studentenfutter","erdnüsse"]],
@@ -479,8 +485,9 @@ const EMO_WORDS = [
   ["🫓", ["wraps","tortilla","pita","naan","tacoschale","fladen"]],
   ["🥬", ["spinat","rucola","lauch","porree","sellerie","kohlrabi","rotkohl","weißkohl","wirsing","fenchel","mangold","rote bete","radieschen","pak choi"]],
   ["🥦", ["blumenkohl","rosenkohl"]],
+  ["🧅", ["zwiebel","schalotte"]],   // "Lauchzwiebeln" -> Zwiebel, nicht Salat (7 Zeichen schlagen "lauch")
   ["🥒", ["zucchini"]],
-  ["🍄", ["pilze","kräuterseitlinge","austernpilze"]],
+  ["🍄‍🟫", ["pilze","champignon","kräuterseitlinge","austernpilze"]],
   ["🫒", ["oliven","rapsöl","sonnenblumenöl","sesamöl"]],
   ["🌿", ["petersilie","basilikum","schnittlauch","koriander","minze","rosmarin","thymian","oregano","pesto","dill"]],
   ["🍋", ["limette"]],
@@ -491,15 +498,17 @@ const EMO_WORDS = [
   ["🫙", ["tahini","gewürz","curry","kurkuma","zimt","vanille","muskat","kreuzkümmel","stärke","natron"]],
   ["🍫", ["müsliriegel","proteinriegel","schokoriegel","pralinen"]],
   ["🍬", ["kaugummi","lakritz"]],
-  ["🥤", ["smoothie","energydrink","iso-drink","mineralwasser"]],
+  ["🥤", ["smoothie","energydrink","iso-drink"]],
+  ["🫧", ["mineralwasser","sprudelwasser","tafelwasser","selters"]],
   ["🥃", ["wodka","whisky","likör","schnaps","aperol","gin"]],
   ["🍣", ["sushi"]],
   ["🍤", ["surimi","scampi"]],
-  ["🐟", ["forelle","kabeljau","seelachs","dorade","hering","matjes","makrele"]],
+  ["🐟", ["forelle","kabeljau","seelachs","dorade","hering","matjes","makrele","thunfisch","sardinen","sardellen"]],
   ["🍖", ["lammfleisch","schweinefleisch","braten","spareribs"]],
   ["🍗", ["hähnchenschenkel","chicken","ente"]],
   ["🍚", ["milchreis","risotto","basmati"]],
-  ["🍝", ["tagliatelle","penne","fusilli","lasagne","tortellini","gnocchi"]],
+  ["🍝", ["tagliatelle","penne","fusilli","lasagne","tortellini","gnocchi","spaghetti","spirelli","makkaroni","bandnudeln"]],
+  ["🌽", ["mais","polentagrieß"]],
   ["🧻", ["toilettenpapier","taschentücher","servietten","feuchttücher","tempo","küchentücher"]],
   ["🧼", ["spülmaschinentabs","geschirrspültabs","klarspüler","seife","spüli"]],
   ["🧺", ["weichspüler","waschpulver","fleckenentferner"]],
@@ -644,7 +653,7 @@ function fitText(el){
 function fitAll(){ document.querySelectorAll(".nm").forEach(fitText); }
 
 // gespeicherte 🛒 (aus der Zeit vor dem besseren Raten) beim Anzeigen nachbessern
-function showEmo(emo, name){ return (emo && emo!=="🛒") ? emo : emoFor(name); }
+function showEmo(emo, name){ const g = emoFor(name); return g!=="🛒" ? g : (emo || "🛒"); }
 function tileHTML(it){
   const q = qtyLabel(it);
   const armed = it.id===armedId;
